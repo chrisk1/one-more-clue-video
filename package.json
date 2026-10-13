@@ -1,0 +1,15 @@
+{
+  "name": "one-more-clue",
+  "version": "1.0.0",
+  "description": "Hand-drawn-style animated music video \"One More Clue\", rendered from a canvas function of time with Puppeteer + ffmpeg.",
+  "private": false,
+  "type": "commonjs",
+  "scripts": {
+    "preview": "node render.js --w 960 --fps 24 --jobs 4 --crf 26 --preset veryfast --out out/preview.mp4 --tmp out/_chunks_preview",
+    "render:4k": "node render.js --w 3840 --fps 30 --jobs 2 --chunk 6 --crf 16 --preset slow --out out/master_4k.mp4",
+    "frames": "node frames.js --w 1280 --out out/frames --from 0 --to 136 --step 4"
+  },
+  "dependencies": {
+    "puppeteer": "^25.12.0"
+  }
+}

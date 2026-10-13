@@ -1,0 +1,1324 @@
+{
+ "bpm": 92.95,
+ "downbeat": 0.9357083,
+ "lines": [
+  {
+   "i": 0,
+   "s": 1.4,
+   "e": 6.08,
+   "text": "Sequential diagnosis: a question, a test,",
+   "words": [
+    [
+     "Sequential",
+     1.4
+    ],
+    [
+     "diagnosis:",
+     2.006
+    ],
+    [
+     "a",
+     3.947
+    ],
+    [
+     "question,",
+     4.066
+    ],
+    [
+     "a",
+     4.731
+    ],
+    [
+     "test,",
+     4.899
+    ]
+   ]
+  },
+  {
+   "i": 1,
+   "s": 6.42,
+   "e": 10.26,
+   "text": "Artificial intelligence choosing what comes next.",
+   "words": [
+    [
+     "Artificial",
+     6.42
+    ],
+    [
+     "intelligence",
+     7.3
+    ],
+    [
+     "choosing",
+     8.713
+    ],
+    [
+     "what",
+     9.285
+    ],
+    [
+     "comes",
+     9.5
+    ],
+    [
+     "next.",
+     9.871
+    ]
+   ]
+  },
+  {
+   "i": 2,
+   "s": 11.6,
+   "e": 15.6,
+   "text": "New evidence lands, and we change our view,",
+   "words": [
+    [
+     "New",
+     11.6
+    ],
+    [
+     "evidence",
+     11.95
+    ],
+    [
+     "lands,",
+     12.53
+    ],
+    [
+     "and",
+     13.62
+    ],
+    [
+     "we",
+     13.82
+    ],
+    [
+     "change",
+     14.05
+    ],
+    [
+     "our",
+     14.68
+    ],
+    [
+     "view,",
+     15.03
+    ]
+   ]
+  },
+  {
+   "i": 3,
+   "s": 16.39,
+   "e": 21.9,
+   "text": "The next move follows from the latest clue.",
+   "words": [
+    [
+     "The",
+     16.39
+    ],
+    [
+     "next",
+     16.53
+    ],
+    [
+     "move",
+     16.8
+    ],
+    [
+     "follows",
+     17.88
+    ],
+    [
+     "from",
+     19.91
+    ],
+    [
+     "the",
+     20.17
+    ],
+    [
+     "latest",
+     20.45
+    ],
+    [
+     "clue.",
+     21.34
+    ]
+   ]
+  },
+  {
+   "i": 4,
+   "s": 31.42,
+   "e": 33.81,
+   "text": "Medicine moves as the evidence grows,",
+   "words": [
+    [
+     "Medicine",
+     31.42
+    ],
+    [
+     "moves",
+     31.97
+    ],
+    [
+     "as",
+     32.29
+    ],
+    [
+     "the",
+     32.42
+    ],
+    [
+     "evidence",
+     32.6
+    ],
+    [
+     "grows,",
+     33.125
+    ]
+   ]
+  },
+  {
+   "i": 5,
+   "s": 33.81,
+   "e": 36.325,
+   "text": "Each answer can change where the next step goes.",
+   "words": [
+    [
+     "Each",
+     33.81
+    ],
+    [
+     "answer",
+     34.02
+    ],
+    [
+     "can",
+     34.38
+    ],
+    [
+     "change",
+     34.56
+    ],
+    [
+     "where",
+     34.91
+    ],
+    [
+     "the",
+     35.2
+    ],
+    [
+     "next",
+     35.38
+    ],
+    [
+     "step",
+     35.62
+    ],
+    [
+     "goes.",
+     35.86
+    ]
+   ]
+  },
+  {
+   "i": 6,
+   "s": 36.325,
+   "e": 38.81,
+   "text": "Breadth across medicine, depth down each thread,",
+   "words": [
+    [
+     "Breadth",
+     36.325
+    ],
+    [
+     "across",
+     36.79
+    ],
+    [
+     "medicine,",
+     37.055
+    ],
+    [
+     "depth",
+     37.585
+    ],
+    [
+     "down",
+     37.885
+    ],
+    [
+     "each",
+     38.12
+    ],
+    [
+     "thread,",
+     38.33
+    ]
+   ]
+  },
+  {
+   "i": 7,
+   "s": 38.81,
+   "e": 41.21,
+   "text": "More than one lifetime could pack in one head.",
+   "words": [
+    [
+     "More",
+     38.81
+    ],
+    [
+     "than",
+     39.04
+    ],
+    [
+     "one",
+     39.3
+    ],
+    [
+     "lifetime",
+     39.5
+    ],
+    [
+     "could",
+     40.18
+    ],
+    [
+     "pack",
+     40.43
+    ],
+    [
+     "in",
+     40.55
+    ],
+    [
+     "one",
+     40.66
+    ],
+    [
+     "head.",
+     40.82
+    ]
+   ]
+  },
+  {
+   "i": 8,
+   "s": 41.21,
+   "e": 44.2,
+   "text": "Weigh what each test adds, what it costs us to know,",
+   "words": [
+    [
+     "Weigh",
+     41.21
+    ],
+    [
+     "what",
+     41.66
+    ],
+    [
+     "each",
+     41.91
+    ],
+    [
+     "test",
+     42.16
+    ],
+    [
+     "adds,",
+     42.43
+    ],
+    [
+     "what",
+     42.95
+    ],
+    [
+     "it",
+     43.26
+    ],
+    [
+     "costs",
+     43.48
+    ],
+    [
+     "us",
+     43.7
+    ],
+    [
+     "to",
+     43.85
+    ],
+    [
+     "know,",
+     44.015
+    ]
+   ]
+  },
+  {
+   "i": 9,
+   "s": 44.2,
+   "e": 46.82,
+   "text": "Then choose the next step. D-X-O.",
+   "words": [
+    [
+     "Then",
+     44.2
+    ],
+    [
+     "choose",
+     44.78
+    ],
+    [
+     "the",
+     44.96
+    ],
+    [
+     "next",
+     45.15
+    ],
+    [
+     "step.",
+     45.41
+    ],
+    [
+     "D-X-O.",
+     45.585
+    ]
+   ],
+   "dxo": [
+    45.585,
+    46.185,
+    46.745
+   ]
+  },
+  {
+   "i": 10,
+   "s": 47.53,
+   "e": 49.8,
+   "text": "One more clue, let it come through,",
+   "words": [
+    [
+     "One",
+     47.53
+    ],
+    [
+     "more",
+     47.84
+    ],
+    [
+     "clue,",
+     48.12
+    ],
+    [
+     "let",
+     48.67
+    ],
+    [
+     "it",
+     48.84
+    ],
+    [
+     "come",
+     48.96
+    ],
+    [
+     "through,",
+     49.15
+    ]
+   ]
+  },
+  {
+   "i": 11,
+   "s": 50.12,
+   "e": 52.02,
+   "text": "Little by little, get a better view.",
+   "words": [
+    [
+     "Little",
+     50.12
+    ],
+    [
+     "by",
+     50.42
+    ],
+    [
+     "little,",
+     50.7
+    ],
+    [
+     "get",
+     50.91
+    ],
+    [
+     "a",
+     51.03
+    ],
+    [
+     "better",
+     51.1
+    ],
+    [
+     "view.",
+     51.58
+    ]
+   ]
+  },
+  {
+   "i": 12,
+   "s": 52.02,
+   "e": 54.6,
+   "text": "If the facts change, then the route can too,",
+   "words": [
+    [
+     "If",
+     52.02
+    ],
+    [
+     "the",
+     52.29
+    ],
+    [
+     "facts",
+     52.66
+    ],
+    [
+     "change,",
+     52.86
+    ],
+    [
+     "then",
+     53.31
+    ],
+    [
+     "the",
+     53.5
+    ],
+    [
+     "route",
+     53.64
+    ],
+    [
+     "can",
+     54.03
+    ],
+    [
+     "too,",
+     54.26
+    ]
+   ]
+  },
+  {
+   "i": 13,
+   "s": 54.575,
+   "e": 58.27,
+   "text": "D-X-O, what's the next best move?",
+   "words": [
+    [
+     "D-X-O,",
+     54.575
+    ],
+    [
+     "what's",
+     56.12
+    ],
+    [
+     "the",
+     56.42
+    ],
+    [
+     "next",
+     56.7
+    ],
+    [
+     "best",
+     56.87
+    ],
+    [
+     "move?",
+     57.07
+    ]
+   ],
+   "dxo": [
+    54.575,
+    55.225,
+    55.755
+   ]
+  },
+  {
+   "i": 14,
+   "s": 58.41,
+   "e": 62.075,
+   "text": "S-D-Bench: ask for findings, order a test,",
+   "words": [
+    [
+     "S-D-Bench:",
+     58.41
+    ],
+    [
+     "ask",
+     59.76
+    ],
+    [
+     "for",
+     59.98
+    ],
+    [
+     "findings,",
+     60.2
+    ],
+    [
+     "order",
+     61.07
+    ],
+    [
+     "a",
+     61.465
+    ],
+    [
+     "test,",
+     61.545
+    ]
+   ]
+  },
+  {
+   "i": 15,
+   "s": 62.075,
+   "e": 64.66,
+   "text": "Let what comes back help decide what comes next.",
+   "words": [
+    [
+     "Let",
+     62.075
+    ],
+    [
+     "what",
+     62.275
+    ],
+    [
+     "comes",
+     62.505
+    ],
+    [
+     "back",
+     62.88
+    ],
+    [
+     "help",
+     63.1
+    ],
+    [
+     "decide",
+     63.3
+    ],
+    [
+     "what",
+     63.65
+    ],
+    [
+     "comes",
+     63.89
+    ],
+    [
+     "next.",
+     64.18
+    ]
+   ]
+  },
+  {
+   "i": 16,
+   "s": 64.66,
+   "e": 67.46,
+   "text": "When the record runs dry, the simulator replies",
+   "words": [
+    [
+     "When",
+     64.66
+    ],
+    [
+     "the",
+     64.89
+    ],
+    [
+     "record",
+     65.06
+    ],
+    [
+     "runs",
+     65.31
+    ],
+    [
+     "dry,",
+     65.545
+    ],
+    [
+     "the",
+     65.835
+    ],
+    [
+     "simulator",
+     66.01
+    ],
+    [
+     "replies",
+     66.6
+    ]
+   ]
+  },
+  {
+   "i": 17,
+   "s": 67.46,
+   "e": 69.89,
+   "text": "With plausible findings the notes don't supply.",
+   "words": [
+    [
+     "With",
+     67.46
+    ],
+    [
+     "plausible",
+     67.59
+    ],
+    [
+     "findings",
+     68.05
+    ],
+    [
+     "the",
+     68.56
+    ],
+    [
+     "notes",
+     68.71
+    ],
+    [
+     "don't",
+     68.97
+    ],
+    [
+     "supply.",
+     69.21
+    ]
+   ]
+  },
+  {
+   "i": 18,
+   "s": 69.89,
+   "e": 72.23,
+   "text": "Synthetic answers keep new routes in play,",
+   "words": [
+    [
+     "Synthetic",
+     69.89
+    ],
+    [
+     "answers",
+     70.235
+    ],
+    [
+     "keep",
+     70.665
+    ],
+    [
+     "new",
+     70.89
+    ],
+    [
+     "routes",
+     71.065
+    ],
+    [
+     "in",
+     71.425
+    ],
+    [
+     "play,",
+     71.828
+    ]
+   ]
+  },
+  {
+   "i": 19,
+   "s": 72.23,
+   "e": 74.775,
+   "text": "So gaps in the notes don't give answers away.",
+   "words": [
+    [
+     "So",
+     72.23
+    ],
+    [
+     "gaps",
+     72.71
+    ],
+    [
+     "in",
+     72.94
+    ],
+    [
+     "the",
+     73.02
+    ],
+    [
+     "notes",
+     73.22
+    ],
+    [
+     "don't",
+     73.51
+    ],
+    [
+     "give",
+     73.79
+    ],
+    [
+     "answers",
+     74.02
+    ],
+    [
+     "away.",
+     74.17
+    ]
+   ]
+  },
+  {
+   "i": 20,
+   "s": 74.775,
+   "e": 77.31,
+   "text": "Hypothesis keeps three contenders in view,",
+   "words": [
+    [
+     "Hypothesis",
+     74.775
+    ],
+    [
+     "keeps",
+     75.47
+    ],
+    [
+     "three",
+     75.8
+    ],
+    [
+     "contenders",
+     76.13
+    ],
+    [
+     "in",
+     77.1
+    ],
+    [
+     "view,",
+     77.23
+    ]
+   ]
+  },
+  {
+   "i": 21,
+   "s": 77.31,
+   "e": 80.323,
+   "text": "Challenger asks, \"What else could be true?\"",
+   "words": [
+    [
+     "Challenger",
+     77.31
+    ],
+    [
+     "asks,",
+     78.073
+    ],
+    [
+     "\"What",
+     78.835
+    ],
+    [
+     "else",
+     79.06
+    ],
+    [
+     "could",
+     79.285
+    ],
+    [
+     "be",
+     79.58
+    ],
+    [
+     "true?\"",
+     79.675
+    ]
+   ]
+  },
+  {
+   "i": 22,
+   "s": 80.323,
+   "e": 82.85,
+   "text": "Test-Chooser: \"Which test tells these options apart?\"",
+   "words": [
+    [
+     "Test-Chooser:",
+     80.323
+    ],
+    [
+     "\"Which",
+     80.97
+    ],
+    [
+     "test",
+     81.2
+    ],
+    [
+     "tells",
+     81.38
+    ],
+    [
+     "these",
+     81.61
+    ],
+    [
+     "options",
+     81.84
+    ],
+    [
+     "apart?\"",
+     82.16
+    ]
+   ]
+  },
+  {
+   "i": 23,
+   "s": 82.85,
+   "e": 85.49,
+   "text": "Stewardship: \"Same insight for less? That's smart.\"",
+   "words": [
+    [
+     "Stewardship:",
+     82.85
+    ],
+    [
+     "\"Same",
+     83.64
+    ],
+    [
+     "insight",
+     83.89
+    ],
+    [
+     "for",
+     84.35
+    ],
+    [
+     "less?",
+     84.6
+    ],
+    [
+     "That's",
+     84.78
+    ],
+    [
+     "smart.\"",
+     84.93
+    ]
+   ]
+  },
+  {
+   "i": 24,
+   "s": 85.49,
+   "e": 87.93,
+   "text": "Checklist keeps names and the reasoning straight,",
+   "words": [
+    [
+     "Checklist",
+     85.49
+    ],
+    [
+     "keeps",
+     86.0
+    ],
+    [
+     "names",
+     86.17
+    ],
+    [
+     "and",
+     86.5
+    ],
+    [
+     "the",
+     86.64
+    ],
+    [
+     "reasoning",
+     86.76
+    ],
+    [
+     "straight,",
+     87.51
+    ]
+   ]
+  },
+  {
+   "i": 25,
+   "s": 87.93,
+   "e": 90.415,
+   "text": "Five coats, one model. Now all five rotate.",
+   "words": [
+    [
+     "Five",
+     87.93
+    ],
+    [
+     "coats,",
+     88.14
+    ],
+    [
+     "one",
+     88.4
+    ],
+    [
+     "model.",
+     88.61
+    ],
+    [
+     "Now",
+     89.155
+    ],
+    [
+     "all",
+     89.345
+    ],
+    [
+     "five",
+     89.515
+    ],
+    [
+     "rotate.",
+     89.74
+    ]
+   ]
+  },
+  {
+   "i": 26,
+   "s": 90.415,
+   "e": 93.47,
+   "text": "Still trials to run, still work to get right,",
+   "words": [
+    [
+     "Still",
+     90.415
+    ],
+    [
+     "trials",
+     90.763
+    ],
+    [
+     "to",
+     91.11
+    ],
+    [
+     "run,",
+     91.28
+    ],
+    [
+     "still",
+     91.74
+    ],
+    [
+     "work",
+     92.11
+    ],
+    [
+     "to",
+     92.41
+    ],
+    [
+     "get",
+     92.56
+    ],
+    [
+     "right,",
+     92.78
+    ]
+   ]
+  },
+  {
+   "i": 27,
+   "s": 93.47,
+   "e": 95.44,
+   "text": "Could that knowledge reach every bedside?",
+   "words": [
+    [
+     "Could",
+     93.47
+    ],
+    [
+     "that",
+     93.67
+    ],
+    [
+     "knowledge",
+     93.805
+    ],
+    [
+     "reach",
+     94.24
+    ],
+    [
+     "every",
+     94.59
+    ],
+    [
+     "bedside?",
+     94.8
+    ]
+   ]
+  },
+  {
+   "i": 28,
+   "s": 95.44,
+   "e": 98.29,
+   "text": "If this is the starting point, think what we'll see,",
+   "words": [
+    [
+     "If",
+     95.44
+    ],
+    [
+     "this",
+     95.68
+    ],
+    [
+     "is",
+     95.97
+    ],
+    [
+     "the",
+     96.07
+    ],
+    [
+     "starting",
+     96.22
+    ],
+    [
+     "point,",
+     96.71
+    ],
+    [
+     "think",
+     97.05
+    ],
+    [
+     "what",
+     97.25
+    ],
+    [
+     "we'll",
+     97.49
+    ],
+    [
+     "see,",
+     97.755
+    ]
+   ]
+  },
+  {
+   "i": 29,
+   "s": 98.29,
+   "e": 101.493,
+   "text": "Let's make this the least capable it'll ever be.",
+   "words": [
+    [
+     "Let's",
+     98.29
+    ],
+    [
+     "make",
+     98.635
+    ],
+    [
+     "this",
+     98.925
+    ],
+    [
+     "the",
+     99.05
+    ],
+    [
+     "least",
+     99.35
+    ],
+    [
+     "capable",
+     99.61
+    ],
+    [
+     "it'll",
+     100.06
+    ],
+    [
+     "ever",
+     100.23
+    ],
+    [
+     "be.",
+     100.74
+    ]
+   ]
+  },
+  {
+   "i": 30,
+   "s": 101.56,
+   "e": 104.023,
+   "text": "One more clue, let it come through,",
+   "words": [
+    [
+     "One",
+     101.56
+    ],
+    [
+     "more",
+     101.83
+    ],
+    [
+     "clue,",
+     102.3
+    ],
+    [
+     "let",
+     102.79
+    ],
+    [
+     "it",
+     103.09
+    ],
+    [
+     "come",
+     103.18
+    ],
+    [
+     "through,",
+     103.36
+    ]
+   ]
+  },
+  {
+   "i": 31,
+   "s": 104.36,
+   "e": 106.44,
+   "text": "Little by little, get a better view.",
+   "words": [
+    [
+     "Little",
+     104.36
+    ],
+    [
+     "by",
+     104.61
+    ],
+    [
+     "little,",
+     104.92
+    ],
+    [
+     "get",
+     105.24
+    ],
+    [
+     "a",
+     105.47
+    ],
+    [
+     "better",
+     105.74
+    ],
+    [
+     "view.",
+     106.09
+    ]
+   ]
+  },
+  {
+   "i": 32,
+   "s": 106.7,
+   "e": 109.47,
+   "text": "A world of people we could bring this to,",
+   "words": [
+    [
+     "A",
+     106.7
+    ],
+    [
+     "world",
+     106.88
+    ],
+    [
+     "of",
+     107.17
+    ],
+    [
+     "people",
+     107.36
+    ],
+    [
+     "we",
+     107.8
+    ],
+    [
+     "could",
+     107.94
+    ],
+    [
+     "bring",
+     108.17
+    ],
+    [
+     "this",
+     108.47
+    ],
+    [
+     "to,",
+     108.74
+    ]
+   ]
+  },
+  {
+   "i": 33,
+   "s": 109.47,
+   "e": 114.56,
+   "text": "One more clue. Imagine what we could do.",
+   "words": [
+    [
+     "One",
+     109.47
+    ],
+    [
+     "more",
+     109.78
+    ],
+    [
+     "clue.",
+     110.05
+    ],
+    [
+     "Imagine",
+     110.71
+    ],
+    [
+     "what",
+     111.2
+    ],
+    [
+     "we",
+     111.49
+    ],
+    [
+     "could",
+     111.65
+    ],
+    [
+     "do.",
+     111.83
+    ]
+   ]
+  }
+ ]
+}

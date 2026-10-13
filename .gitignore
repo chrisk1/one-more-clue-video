@@ -1,0 +1,9 @@
+node_modules/
+out/
+_chunks*/
+review/
+.DS_Store
+__pycache__/
+*.pyc
+separated/
+generated/

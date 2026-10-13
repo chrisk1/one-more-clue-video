@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face { font-family: FB; src: url(../fonts/FrauncesSoftBlack.ttf); }
+  @font-face { font-family: FBo; src: url(../fonts/FrauncesSoftBold.ttf); }
+  @font-face { font-family: SH; font-weight: 400; src: url(../fonts/Fredoka400-latin.woff2) format('woff2'); size-adjust: 95%; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: SH; font-weight: 400; src: url(../fonts/Fredoka400-latinext.woff2) format('woff2'); size-adjust: 95%; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: SHm; font-weight: 400; src: url(../fonts/Fredoka400-latin.woff2) format('woff2'); size-adjust: 95%; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: SHm; font-weight: 400; src: url(../fonts/Fredoka400-latinext.woff2) format('woff2'); size-adjust: 95%; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: BR; src: url(../fonts/BricolageXB.ttf); }
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+  #fontwarm { position: absolute; left: -9999px; }
+</style></head>
+<body>
+<!-- "Boil": three turbulence-displacement variants that sprites (boil0-2) and type (boilT0-2, gentler) cycle through
+     12 times a second, so every drawing shivers like hand-redrawn animation. Variants are baked once and cached (gfx.js). -->
+<svg width="0" height="0" style="position:absolute">
+  <filter id="boil0" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="6.5" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="boil1" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="17"/><feDisplacementMap in="SourceGraphic" scale="6.5" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="boil2" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="41"/><feDisplacementMap in="SourceGraphic" scale="6.5" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="boilT0" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4.875" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="boilT1" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="17"/><feDisplacementMap in="SourceGraphic" scale="4.875" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="boilT2" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="41"/><feDisplacementMap in="SourceGraphic" scale="4.875" xChannelSelector="R" yChannelSelector="G"/></filter>
+</svg>
+<div id="fontwarm"><span style="font-family:FB">a</span><span style="font-family:FBo">a</span><span style="font-family:SH">a</span><span style="font-family:SHm">a</span><span style="font-family:BR">a</span></div>
+<canvas id="cv"></canvas>
+<script src="lyrics.js"></script>
+<script src="tempo.js"></script>
+<script src="core.js"></script>
+<script src="gfx.js"></script>
+<script src="assets.js"></script>
+<!-- shots register themselves with shot(name, t0, f); later files may add shots that cut into earlier ones -->
+<script src="shots/01_hook.js"></script>
+<script src="shots/02_verse1.js"></script>
+<script src="shots/03_verse2.js"></script>
+<script src="shots/04_chorus1.js"></script>
+<script src="shots/05_verse3.js"></script>
+<script src="shots/06_panel.js"></script>
+<script src="shots/07_bridge.js"></script>
+<script src="shots/08_finale.js"></script>
+<script src="shots/09_finale_extras.js"></script>
+<script>
+'use strict';
+// One More Clue: the whole film is a pure function of time. setup(w, h) loads fonts + images once; seek(t) paints
+// frame t onto #cv. render.js / frames.js drive these two calls from headless Chrome.
+// Shot registry: shots push {name, t0, f(t, lt)}; the active shot at time t is the one with the latest t0 <= t.
+let blurTmp = null, typeScratch = null;
+function setup(w, h) {
+  CV = document.getElementById('cv'); CV.width = w; CV.height = h;
+  X = CV.getContext('2d'); S = w / DW;
+  makePost(w, h);
+  blurTmp = document.createElement('canvas'); blurTmp.width = w; blurTmp.height = h;
+  SHOTS.sort((a, b) => a.t0 - b.t0);
+  return document.fonts.ready.then(() => loadImages(ASSET_LIST)).then(() => 'ready');
+}
+// Directional smear for whips: dx,dy in design px (total smear length)
+function smear(dx, dy, n = 7) {
+  if (Math.hypot(dx, dy) < 2) return;
+  const g = blurTmp.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'copy'; g.drawImage(CV, 0, 0);
+  X.save(); X.setTransform(1, 0, 0, 1, 0, 0);
+  const L = Math.hypot(dx, dy), m = Math.min(1, 140 / L); dx *= m; dy *= m;
+  for (let i = 1; i < n; i++) { const k = i / (n - 1) - .5; X.globalAlpha = .55 / (i + 1); X.drawImage(blurTmp, dx * k * S, dy * k * S); }
+  X.restore();
+}
+let POST = {};
+function seek(t) {
+  T = t; POST = {};
+  X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = 1; X.globalCompositeOperation = 'source-over'; X.filter = 'none';
+  X.fillStyle = PAL.paper; X.fillRect(0, 0, CV.width, CV.height);
+  X.setTransform(S, 0, 0, S, 0, 0);
+  let sh = null; for (const s of SHOTS) if (s.t0 <= t + 1e-6 && (!sh || s.t0 >= sh.t0)) sh = s;
+  if (sh) { X.save(); sh.f(t, t - sh.t0); X.restore(); }
+  X.setTransform(S, 0, 0, S, 0, 0);
+  if (POST.smear && sh) {
+    // re-render without type, blur, then draw only the type on top (lyrics stay crisp during whips)
+    const P1 = POST;
+    X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = 1; X.fillStyle = PAL.paper; X.fillRect(0, 0, CV.width, CV.height); X.setTransform(S, 0, 0, S, 0, 0);
+    setTypeMode('skip'); POST = {}; X.save(); sh.f(t, t - sh.t0); X.restore(); POST = P1;
+    X.setTransform(S, 0, 0, S, 0, 0); smear(...POST.smear);
+    if (!typeScratch) { typeScratch = document.createElement('canvas'); }
+    if (typeScratch.width !== CV.width) { typeScratch.width = CV.width; typeScratch.height = CV.height; }
+    const realX = X; X = typeScratch.getContext('2d'); X.setTransform(S, 0, 0, S, 0, 0);
+    setTypeMode('record'); POST = {}; X.save(); sh.f(t, t - sh.t0); X.restore(); POST = P1;
+    X = realX; X.setTransform(S, 0, 0, S, 0, 0); setTypeMode(''); replayType();
+  }
+  post(POST);
+  if (POST.fade) { X.save(); X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = POST.fade; X.fillStyle = POST.fadeCol || PAL.paper; X.fillRect(0, 0, CV.width, CV.height); X.restore(); }
+  if (window.DEBUG) { X.save(); X.setTransform(S, 0, 0, S, 0, 0); X.font = '22px monospace'; X.fillStyle = '#000'; X.fillText(t.toFixed(2) + ' ' + (sh && sh.name || ''), 12, 28); X.restore(); }
+}
+// Camera: put world point (x,y) at screen centre, zoom z, roll r.
+function cam(x, y, z = 1, r = 0) { X.translate(DW / 2, DH / 2); X.scale(z, z); X.rotate(r); X.translate(-x, -y); }
+window.setup = setup; window.seek = seek;
+</script>
+</body></html>
