@@ -1,15 +1,15 @@
 # Workflow prompts
 
-These prompts drove the AI-assisted production of *One More Clue*. They're lightly edited for clarity. Placeholders
-are in `{braces}`. Image-generation prompts are in [IMAGE_PROMPTS.md](IMAGE_PROMPTS.md) (the original ink
-look) and [PENCIL_PROMPTS.md](PENCIL_PROMPTS.md) (the coloured-pencil restyle). Images were generated with
-GPT Image 2.5 and MAI Image 2.6.
+These are the prompts used to make *One More Clue* with AI agents, lightly edited for clarity. Placeholders are in
+`{braces}`. The image-generation prompts are in [IMAGE_PROMPTS.md](IMAGE_PROMPTS.md) for the original ink style and
+[PENCIL_PROMPTS.md](PENCIL_PROMPTS.md) for the coloured-pencil restyle. The images were generated with GPT Image 2.5
+and MAI Image 2.6.
 
 ---
 
 ## 1. The creative brief
 
-The brief that set the bar for everything after the first draft:
+After the first draft, this brief set the standard for everything that followed:
 
 > Make a music video for this song about the paper. It should be charming, hand-drawn, organic, fun, playful and fast
 > moving, with good camera work, attention-grabbing, and closely timed to the music and lyrics. Don't recreate figures or
@@ -27,14 +27,14 @@ The brief that set the bar for everything after the first draft:
 > It should tell the story of the lyrics in a witty, conceptually accurate way, with optimism about AI-assisted diagnosis
 > and the theme of sequentiality (question → test → result → update → next test …).
 
-The rules it boils down to:
-- One strong visual idea.
-- Lyrics as designed type.
-- Every line dramatised as a small gag.
-- Words timed to the syllable.
-- Nudge the paper; don't chart it.
-- Optimistic tone.
-- Plan first, then review the actual frames again and again.
+In short:
+- Build the film around one strong visual idea.
+- Treat the lyrics as designed type.
+- Turn every line into a small gag.
+- Time the words to the syllable.
+- Hint at the paper's content without charting it.
+- Keep the tone optimistic.
+- Plan first, then look at the actual frames again and again.
 
 ---
 
@@ -45,15 +45,15 @@ The rules it boils down to:
 > we see → the gag → where the type sits → camera move. Every line needs a visual idea that *tells* the lyric, not just
 > decorates it. Then hand both documents to a fresh reviewer for a blunt critique and revise.
 
-The idea that came out of this: **diagnosis is a red thread pulled through a pile of clues.** One hand-drawn red thread
-runs through the film. It gets pinned to each new clue, re-routed when the facts change, and ends on
+This produced the film's central idea: diagnosis as a red thread pulled through a pile of clues. One hand-drawn red
+thread runs through the film. It gets pinned to each new clue, re-routed when the facts change, and ends on
 "Diagnosis confirmed ✓".
 
 ---
 
 ## 3. Shot-writer brief (one agent per song section)
 
-Each song section was built by a separate agent working in its own file. Every agent got the same brief:
+A separate agent built each section of the song in its own file. Every agent got the same brief:
 
 > You own `src/shots/{file}` ({time range}, lyrics: {lines with word onset times}). Read `src/core.js` and `src/gfx.js`
 > first; reuse their helpers.
@@ -82,15 +82,15 @@ Each song section was built by a separate agent working in its own file. Every a
 > the lyric data instead of hard-coded numbers. Validate with frames at each word time and a low-res clip with audio.
 > Report an old → new table.
 
-**Tempo map.** The track drifts by up to ±130 ms against a fixed BPM grid. A per-beat map measured from drum onsets in
-the instrumental stem (`tools/audio/tempomap.py` → `audio/tempomap.json` → `src/tempo.js`) drives `beat(n)`, so every
-beat-locked move stays locked through the whole song.
+**Tempo map.** The track drifts by up to ±130 ms from a fixed tempo. `beat(n)` uses a map of every beat, measured
+from the drum hits in the separated instrumental track (`tools/audio/tempomap.py` → `audio/tempomap.json` →
+`src/tempo.js`), so moves that follow the beat stay on it for the whole song.
 
 ---
 
 ## 5. Independent director's critique (run after every major pass)
 
-Always run this with a fresh agent that hasn't seen the build reasoning:
+This was always run by a fresh agent that hadn't seen any of the build discussion:
 
 > You are a demanding music-video director and motion designer reviewing a draft. Read-only. The goal: charming, witty,
 > fast, with big kinetic lyric typography tightly synced to the sung words, telling the story, optimistic. The preview
@@ -107,7 +107,7 @@ Always run this with a fresh agent that hasn't seen the build reasoning:
 >
 > Then give a gag-by-gag verdict (reads / too subtle / cut) and a publication-readiness verdict. Be specific and blunt.
 
-Each finding was turned into a targeted follow-up for the agent that owned that section.
+Each finding became a specific follow-up for the agent responsible for that section.
 
 ---
 
@@ -123,7 +123,7 @@ Each finding was turned into a targeted follow-up for the agent that owned that 
 
 ## 7. Applying timestamped notes
 
-Each round of the creator's notes was handled the same way:
+Every round of the creator's notes was handled the same way:
 
 > Here are the notes, each with a timestamp. Split them by the files that own those moments and give each agent its
 > notes verbatim plus the exact word and beat times involved. Each agent fixes its own notes and verifies with
@@ -134,8 +134,8 @@ Each round of the creator's notes was handled the same way:
 
 ## 8. Coloured-pencil restyle
 
-Once the ink cut was locked, the look was changed without touching the story, timing or camera. The restyle brief, in
-summary:
+Once the ink version was finished, the look was changed without touching the story, timing or camera. A summary of
+the restyle brief:
 
 > Restyle the finished film so that every picture looks drawn by hand in coloured pencil on cream cartridge paper and
 > scanned: soft, warm and charming, like a classic hand-drawn animated film. Keep the storyboard, timing, camera moves
@@ -148,9 +148,9 @@ summary:
 >
 > Settle the look on the first 24 seconds before rolling it out, and compare against the ink cut at exact frames.
 
-**Pulse checks.** Five short clips of the opening were rendered and reviewed before the full rollout. Each round of
-feedback pushed in the same direction: from a neat, digital-looking result towards a looser, softer, genuinely
-hand-made one. The lessons that came out of them became the rules for the rest of the film:
+**Test clips.** Five short clips of the opening were rendered and reviewed before the rest of the film was restyled.
+Each round of feedback pushed the same way, from something neat and digital-looking towards something looser, softer
+and genuinely hand-made. The lessons from these clips became the rules for the rest of the film:
 - Generate drawings small on the sheet so the pencil grain survives on screen.
 - Rub colour in with the side of the pencil; no cross-hatching or neat parallel strokes.
 - Keep values light: no near-black areas.
@@ -162,7 +162,7 @@ hand-made one. The lessons that came out of them became the rules for the rest o
 
 ## 9. Restyle critique
 
-Run on each full pencil render by a fresh agent that hasn't seen the build reasoning:
+A fresh agent that hadn't seen the build discussion reviewed each full pencil render:
 
 > Review the coloured-pencil cut against the ink cut at matching frames. Read-only. Check that every drawing reads as
 > genuine hand-drawn coloured pencil and stays on-model, that nothing kept the old ink look, that cut-out drawings have
@@ -170,5 +170,5 @@ Run on each full pencil render by a fresh agent that hasn't seen the build reaso
 > boil and camera match the ink cut. Check the status of every item from the previous round (fixed / partial / not
 > fixed) and look for regressions. Give a ranked, timestamped list of fixes and a verdict on readiness for the 4K master.
 
-Three rounds were run. The findings went back to the agents that owned the affected drawings or shots, and the third
-round cleared the film for the final 4K render.
+There were three rounds. The findings went back to the agents responsible for the drawings or shots involved, and
+after the third round the film was ready for the final 4K render.

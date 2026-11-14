@@ -1,8 +1,10 @@
 # Image prompts
 
-Every image generated for the original ink look of the film, grouped by use (the coloured-pencil redraws used in the final film are in [PENCIL_PROMPTS.md](PENCIL_PROMPTS.md)). Each was made with GPT Image 2.5 and MAI Image 2.6 (`tools/genone.sh`, one image per call). **Refs** are the reference images passed alongside the prompt (paths relative to `assets/`; a few prompts used an earlier generated image as a style anchor, marked as such); the character crops in `assets/ref/` keep every pose on-model. Size is the requested canvas; background is `transparent` for sprites and `opaque` for plates.
+These are the prompts for every image in the film's original ink style, grouped by use. The coloured-pencil versions used in the final film are in [PENCIL_PROMPTS.md](PENCIL_PROMPTS.md). Each image was made with GPT Image 2.5 and MAI Image 2.6 (`tools/genone.sh`, one image per call).
 
-Sprites were then alpha-trimmed (`tools/trim.js`). Some sprites have several candidates; only the chosen one is in `assets/`.
+**Refs** are the reference images sent with the prompt, with paths relative to `assets/`. A few prompts used an earlier generated image as a style reference, and these are marked. The character crops in `assets/ref/` keep the characters looking the same in every pose. **Size** is the requested canvas. The background is `transparent` for sprites and `opaque` for plates.
+
+The sprites were then trimmed to their visible edges (`tools/trim.js`). Some sprites had several candidates, and only the chosen one is in `assets/`.
 
 ## Background plates
 

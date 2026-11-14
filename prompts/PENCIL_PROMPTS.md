@@ -1,12 +1,12 @@
 # Coloured-pencil image prompts
 
-Every drawing in `assets/pencil/` was generated **opaque on a plain sheet of cream paper** from the original ink asset of the same name (image 1) plus a style reference (image 2), then keyed out and fitted onto the original's canvas with `tools/pencil/` (see the README). The prompts below are the ones used, with references to specific films replaced by generic descriptions. Paths are relative to the repository root.
+Every drawing in `assets/pencil/` was generated on a **plain sheet of cream paper with no transparency**, using the original ink image of the same name (image 1) and a style reference (image 2). The tools in `tools/pencil/` then cut each drawing out of the paper and placed it on the original's canvas (see the README). These are the prompts that were used, except that references to specific films have been replaced with general descriptions of the style. Paths are relative to the repository root.
 
-Images were generated with **GPT Image 2.5** and **MAI Image 2.6** at high quality.
+The images were generated with **GPT Image 2.5** and **MAI Image 2.6** at high quality.
 
 ## Shared style clause
 
-Appended to every character, prop and window drawing:
+Added to the end of every character, prop and window prompt:
 
 ```
 Redraw this character as a quick, loose, genuine coloured-pencil SKETCH done by hand on cream cartridge paper and scanned. Use ONLY coloured pencils — no black ink, no marker, no clean outlines. The contours are drawn in soft dark-brown and in darker shades of each colour with a light, quick, nervous hand: wobbly, uneven, sometimes doubled or slightly off, thin in places and fuzzy where the pencil caught the paper grain — clearly imperfect hand-drawn lines. Colour is scribbled and rubbed in softly with the side of the pencil in loose, multi-directional strokes (not neat parallel hatching), a little patchy, slightly over and under the lines, gently layered darker on the shadow side, paper tooth showing through everywhere as tiny pale specks. The whole drawing looks soft, hazy and tactile, like the gentle hand-coloured frames of a classic hand-drawn animated film — warm, tender and full of charm.
@@ -20,11 +20,11 @@ Redraw this character as a quick, loose, genuine coloured-pencil SKETCH done by 
 | S | Image 1 is the subject to draw. Image 2 is only a STYLE example. Redraw image 1's exact subject, shape, angle, details and colours, but drawn in exactly the loose, scanned coloured-pencil sketch technique of image 2. |
 | B | Image 1 is the pose to draw. Image 2 is the character model drawing (exact look and the loose, scanned coloured-pencil technique). Draw image 1's exact head-and-shoulders bust, expression and framing, drawn exactly like image 2. |
 
-`P` was used for characters (image 2 = the character's model sheet in `assets/ref/pencil/`), `S` for props and windows (image 2 = a finished pencil drawing as a style example), `B` for head-and-shoulders busts.
+`P` was used for characters, with the character's model sheet from `assets/ref/pencil/` as image 2. `S` was used for props and windows, with a finished pencil drawing as the style example. `B` was used for head-and-shoulders busts.
 
 ## Layout clauses
 
-Appended after the style clause; `N` is the per-drawing size in the table below. Busts are listed in `tools/pencil/cuts.json` so the cut edge stays straight when keyed out.
+Added after the style clause. `N` is the size given for each drawing in the table below. Busts are listed in `tools/pencil/cuts.json` so their cut edge stays straight when the paper is removed.
 
 | Key | Clause |
 |---|---|
@@ -41,7 +41,7 @@ Appended after the style clause; `N` is the per-drawing size in the table below.
 
 ## Model sheets
 
-One model sheet per character (`assets/ref/pencil/`) keeps the cast on-model. The Challenger, Hypothesis and Test-Chooser sheets were developed first over a few iterations; every other sheet used the character's ink pose as image 1 and the Challenger sheet as the style example:
+Each character has a model sheet in `assets/ref/pencil/`, which keeps them looking the same from pose to pose. The Challenger, Hypothesis and Test-Chooser sheets came first and took a few attempts. Every other sheet used the character's ink pose as image 1 and the Challenger sheet as the style example:
 
 ```
 Image 1 shows the character and pose. Image 2 is a style example: draw image 1's character in exactly the same loose, scanned coloured-pencil sketch technique as image 2 (same soft brown pencil contours, same rubbed-in colour, same paper). <style clause> Keep image 1's character recognisably the same: same face, hair, glasses, clothes, colours, pose, gesture and props. Full figure, centred with a generous margin, on a plain sheet of cream cartridge paper (nothing else, no shadow, no text).
@@ -51,13 +51,13 @@ For the patient and helpers, the sheet also says: *preserve the exact skin tone 
 
 ## Boil drawings
 
-Hand-drawn animation never holds a drawing perfectly still. Each sprite has two re-drawn variants (`name~1`, `name~2`) that the film cycles at 12 fps. Each variant uses the finished drawing as its only reference:
+In hand-drawn animation, even a still pose moves slightly because each frame is drawn again. To get the same effect, each sprite has two redrawn versions (`name~1`, `name~2`) that the film cycles through at 12 fps. Each one used the finished drawing as its only reference:
 
 ```
 Re-draw this exact coloured-pencil sketch again by hand on a fresh sheet of the same cream paper, as the next drawing of a hand-drawn animation held on the same pose: identical pose, position on the sheet, size, proportions, colours and amount of shading — but all the pencil strokes are drawn afresh, so the soft wobbly contours and the rubbed-in colour fall slightly differently, exactly as when an animator re-draws the same drawing. Same loose, scanned coloured-pencil technique. Do not add, remove, move or crop anything differently. Plain cream paper around it, nothing else, no text.
 ```
 
-Variants whose silhouette overlapped the base drawing by less than 86% (IoU) were rejected and redrawn.
+If a redrawn version's outline overlapped the original drawing by less than 86% (intersection over union), it was rejected and drawn again.
 
 ## Backgrounds, paper and special cases
 
@@ -175,7 +175,7 @@ Redraw this exact scene with the SAME composition, camera angle, perspective and
 
 ## Texture swatches
 
-Used by `src/pencil.js` as grain masks for procedural pencil lines and fills (`assets/pencil/texture/`).
+`src/pencil.js` uses these (`assets/pencil/texture/`) as grain masks for the pencil lines and fills it draws in code.
 
 ### `hatch` (2048x2048)
 
@@ -191,7 +191,7 @@ A scanned sheet of white cartridge paper evenly covered, edge to edge, with soft
 
 ## Per-drawing table
 
-Opening + layout keys from above, the size clause `N`, the number of boil variants, and the reference images.
+For each drawing: the opening and layout keys from above, the size `N`, the number of redrawn boil versions and the reference images.
 
 | Drawing | Size | Prompt | N | Boil | References |
 |---|---|---|---|---|---|
