@@ -29,25 +29,54 @@
   const lyr = (items, y, maxW, o = {}) => lrow(items, 70, y, maxW, o);
   const UP = 600, LO = 1005;          // calm bands: between name and thread / bottom
 
+  // Soft pencil light: rubbed, wobble-edged pale discs, denser to the centre (no gradients).
+  function halo(x, y, r, col, a, seed) {
+    if (a <= 0) return;
+    X.save(); X.globalAlpha *= Math.min(1, a);
+    [[1, .2], [.68, .3], [.4, .45]].forEach(([k, al], i) => {
+      const pts = wobbled(ellPts(x, y, r * k, r * k * .9, 20), r * k * .06, seed + i * 13);
+      p4Fill(() => curve(pts, true), p4Shade(col, i * .25), { alpha: al, wash: .6, grain: .75, tex: 'tex_soft' });
+    });
+    X.restore();
+  }
   // Camera push about (960, THY) so the thread keeps its screen height while zooming.
   function pushCam(t, t0, t1, kicks = []) {
     const z = lerp(1, 1.04, E.ioS(prog(t, t0, t1))) + kicks.reduce((a, k) => a + kick(t - k, 9) * .022, 0);
     return [960, THY + (540 - THY) / z, z, 0];
   }
-  // Member-card dressing: wash, slanted name band, disc behind member, sparkles.
+  // A big colour field rubbed onto the paper with coloured pencil: layered, densest in the middle, lighter and
+  // ragged toward the edges, a few heavier patches where the pencil went over twice. World space (moves with bgCam).
+  function rubField(col, k = .8, seed = 900, patches = 5) {
+    paperBG();
+    const blob = (cx, cy, rx, ry, wb, sd) => wobbled(ellPts(cx, cy, rx, ry, 30), wb, sd);
+    X.save(); X.globalCompositeOperation = 'multiply';
+    [[960, 540, 1080, 650, 70, .24, 1], [940, 530, 860, 510, 60, .08, .65], [990, 555, 640, 380, 50, .05, .5]].forEach(([x, y, rx, ry, wb, wa, gr], i) => {
+      const P = blob(x, y, rx, ry, wb, seed + i * 31);
+      p4Fill(() => curve(P, true), col, { alpha: k, wash: wa, grain: gr, tex: 'tex_soft' });
+    });
+    for (let i = 0; i < patches; i++) {                 // uneven pressure: a few overworked patches
+      const P = blob(260 + hash2(i, seed) * 1400, 160 + hash2(i, seed + 5) * 760, 150 + hash2(i, seed + 9) * 170, 90 + hash2(i, seed + 11) * 110, 40, seed + 100 + i);
+      p4Fill(() => curve(P, true), col, { alpha: k * .4, wash: 0, grain: .5, tex: 'tex_soft' });
+    }
+    X.restore();
+  }
+  // Member-card dressing: rubbed colour field, slanted name band, pale disc behind member, sparkles.
   function deco(t, t0, o, c) {
     bgCam(() => {
-      paperBG(o.wash, o.k ?? .8);
+      rubField(o.wash, (o.k ?? .8) * .8, 900 + Math.round(t0 * 7));
       const b = E.outC(prog(t, t0, t0 + .16));
-      X.save(); X.globalAlpha *= .42;
-      inkShape([[-80, 120 + 40], [lerp(-80, 1180, b), 90], [lerp(-80, 1120, b), 560], [-80, 600]], o.band, 0, 2, 820);
+      const band = wobbled([[-80, 160], [lerp(-80, 640, b), 118], [lerp(-80, 1180, b), 90], [lerp(-80, 1150, b), 330], [lerp(-80, 1120, b), 560], [lerp(-80, 600, b), 585], [-80, 600]], 16, 820);
+      X.save(); X.globalCompositeOperation = 'multiply';
+      p4Fill(() => curve(band, true), o.band, { alpha: .34, wash: .2, grain: .75, tex: 'tex_soft' });
       X.restore();
       const d = spring(t - t0, 2.6, .45);
-      X.save(); X.globalAlpha *= .55;
-      inkShape(ellPts(o.cx ?? 1520, 600, 430 * d, 430 * d, 18), o.disc, 0, 3, 830);
-      X.restore();
+      if (d > .01) {
+        const disc = wobbled(ellPts(o.cx ?? 1520, 600, 430 * d, 425 * d, 26), 14 * d, 830);
+        X.save(); X.globalAlpha *= .5; X.fillStyle = o.disc; curve(disc, true); X.fill(); X.restore();
+        p4Fill(() => curve(disc, true), p4Shade(o.disc, -.06), { alpha: .55, wash: .15, grain: .7, tex: 'tex_soft' });
+      }
       (o.sparks || [[1130, 150, 26], [1150, 440, 18], [560, 70, 14]]).forEach(([x, y, r], i) => {
-        const s = r * (.8 + .4 * hash2(boilStep(t), i + 3)) * appear(t, t0 + .1 + i * .06, .1);
+        const s = r * (.85 + .3 * hash2(i, 3)) * appear(t, t0 + .1 + i * .06, .1);
         if (s > 0) inkShape([[x, y - s * 2], [x + s * .45, y - s * .45], [x + s * 2, y], [x + s * .45, y + s * .45], [x, y + s * 2], [x - s * .45, y + s * .45], [x - s * 2, y], [x - s * .45, y - s * .45]], PAL.cream, 3, .6, 840 + i);
       });
     }, c, { par: .9, over: 1.22 });
@@ -118,18 +147,16 @@
     deco(t, t0, { wash: PAL.coral, k: .72, band: '#c4482c', disc: '#ffe1d2' }, c);
     X.save(); cam(...c);
     const h = 720, cx = lerp(1700, 1540, E.outC(prog(t, t0, t0 + .7))), base = 1040;
-    const kx = 1540 - .35 * h, ky = THY;                  // knot sits where the lens comes to rest
+    const kx = 1540 - .382 * h, ky = THY;                 // knot sits where the lens comes to rest
     const Q = [[-14, -34], [-8, -46], [8, -46], [16, -34], [12, -24], [0, -18], [0, -11]];   // the knot's hook sits above the thread…
     const qs = .56 * (1 - E.inBack(prog(t, what, what + .16)));
     const knotQ = () => {
       if (qs <= .01) return;
       thread(spline(Q.map(([x, y]) => [kx + x * qs, ky - 8 + y * qs]), 8), { w: 4.5, shadow: 0 });
       // …and its dot is a little bead resting on top of the thread, so it reads as a full "?"
-      X.save(); X.fillStyle = PAL.red; X.strokeStyle = PAL.redDk; X.lineWidth = 1.6;
-      X.beginPath(); X.arc(kx, ky - 8 + 5 * qs, 3.6 * qs * 1.6, 0, 7); X.fill(); X.stroke(); X.restore();
+      inkShape(ellPts(kx, ky - 8 + 5 * qs, 5.8 * qs, 5.8 * qs, 9), PAL.red, 1.4, .15, 78, PAL.redDk);
     };
     line([[-60, THY], [1980, THY]]);
-    knotQ();
     // the branch: "what else could be true?"
     const card2 = [1095, 300];
     if (t > what) {
@@ -140,21 +167,18 @@
       X.save(); X.translate(card2[0], card2[1]); X.scale(a, a);
       const fl = 1 + E.outBack(prog(t, tru - .05, tru + .2));
       X.translate(0, 125); X.rotate(-.06 + Math.sin((t - els) * 8) * kick(t - els, 4) * .1);
-      card(0, 0, { w: 190, h: 240, glyph: '?', flip: fl, seed: 61, s: 1 + kick(t - tru, 10) * .12, backCol: '#f2c9b6' });
+      card(0, 0, { w: 190, h: 240, glyph: 'bulb', flip: fl, seed: 61, s: 1 + kick(t - tru, 10) * .12, backCol: '#f2c9b6', backGlyph: false });
       X.restore();
       tack(card2[0], card2[1], 1.1, { pressed: E.outBack(prog(t, els, els + .07)) });
     }
     if (t < what) {
       spr('chal_sneak', cx, base + Math.abs(Math.sin((t - t0) * 9)) * -10, h, { flip: true, shadow: 1, seed: 5 });
-      // lens shows the knot, magnified
-      const lx = cx - .35 * h, ly = base - .53 * h, r = .105 * h;
+      // the magnifier lens: the drawn lens of chal_sneak already shows the glass; overlay a soft magnified thread only
+      const lx = cx - .382 * h, ly = base - .584 * h, r = .082 * h;
       X.save(); X.beginPath(); X.arc(lx, ly, r, 0, 7); X.clip();
-      X.fillStyle = '#fbe6d8'; X.fillRect(lx - r, ly - r, r * 2, r * 2);
-      X.translate(lx, ly); X.scale(2.5, 2.5); X.translate(-lx, -ly);
-      thread([[lx - 200, THY], [lx + 200, THY]], { w: 11, shadow: 0 }); knotQ();
+      X.translate(lx, ly); X.scale(2.2, 2.2); X.translate(-lx, -THY);
+      thread([[lx - 200, THY], [lx + 200, THY]], { w: 10, shadow: 0 });
       X.restore();
-      X.save(); X.globalAlpha *= .5; X.strokeStyle = '#fff'; X.lineWidth = 6; X.beginPath(); X.arc(lx, ly, r * .72, 3.6, 4.4); X.stroke(); X.restore();
-      inkShape(ellPts(lx, ly, r, r, 16), null, 6, .8, 77);
     } else {
       const hop = kick(t - what, 7) * 50 + kick(t - tru, 9) * 24;
       // finger up "WHAT ELSE" → shrug "could be" → point at the flipped card "TRUE?"
@@ -232,8 +256,7 @@
       if (t > same - .2) {
         const k = E.inQ(prog(t, same - .2, same)), glow = t > ins ? 1 + kick(t - ins, 6) * .25 : .85;
         const bh = 170 * (1 + kick(t - same, 14) * .1);
-        X.save(); X.globalAlpha *= t > ins ? .5 + .25 * kick(t - ins, 4) : 0;
-        X.fillStyle = '#fff2a6'; X.beginPath(); X.arc(0, 30, 110 * glow, 0, 7); X.fill(); X.restore();
+        if (t > ins) halo(0, 30, 112 * glow, '#ffec8c', .8 + .3 * kick(t - ins, 4), 740 + sd);
         spr('bulb', 0, lerp(-700, 122, k), bh, { seed: sd > 0 ? 1 : 0, sy: 1 / (1 + kick(t - same, 14) * .12) });
       }
       // cost markers sit inside the plumb pans and ride with the pan, rather than dangling from the beam.
@@ -291,7 +314,7 @@
     X.translate(0, bump);
     inkShape(rectPts(-tw / 2, drop, tw, h, 12, 4), '#fbf3df', 4, .9, 780 + i);
     inkShape(rectPts(-tw / 2, drop, 26, h, 8, 2), col, 0, .6, 790 + i);
-    word(name, 13, drop + 60, 60, { font: 'SH', col: PAL.ink, ax: .5, seed: i });
+    word(name, 13, drop + 60, 60, { font: 'SH', col: '#1d130c', edge: true, ax: .5, seed: i });   // darker, a touch heavier (phone legibility)
     if (t >= tickT) { const a = E.outBack(prog(t, tickT, tickT + .12), 2.5); X.save(); X.translate(tw / 2 - 6, drop + 4); X.rotate(.1); X.scale(a * 1.5, a * 1.5); GLYPH.tick(1); X.restore(); }
     X.restore();
     tack(px, THY, .8);
@@ -308,8 +331,9 @@
     X.scale(lerp(.96, 1, k) * (1 + hit * .018), lerp(.96, 1, k) * (1 - hit * .012));
     shadowBlob(10, 18, 210, 35, .16);
     inkShape(rectPts(-175, -118, 350, 260, 18, 5), '#fffaf0', 5, .75, 904);
-    word('REASONING', 0, -78, 42, { font: 'SH', col: PAL.inkSoft, ax: .5, bake: true });
-    inkShape(rectPts(-64, -32, 128, 128, 12, 4), 'rgba(255,255,255,.58)', 6, .8, 905);
+    word('REASONING', 0, -78, 42, { font: 'SH', col: PAL.ink, ax: .5, bake: true });
+    X.save(); X.globalAlpha *= .6; inkShape(rectPts(-64, -32, 128, 128, 12, 4), '#fffdf6', 0, .8, 905); X.restore();
+    inkShape(rectPts(-64, -32, 128, 128, 12, 4), null, 6, .8, 905);
     for (let i = 0; i < 3; i++) inkLine([[-134, 114 + i * 18], [134, 114 + i * 18]], 2.2, '#9fb7c9', .25, 906 + i);
     if (draw > 0) inkLine(ptrim([[-38, 26], [-12, 54], [50, -18]], draw), 10, '#2f9f72', .5, 916);
     X.restore();
@@ -369,7 +393,7 @@
     pts.forEach(([px, py, r], j) => {
       const k = E.outBack(prog(t, t0 + j * .035, t0 + j * .035 + .13), .5);
       if (k <= 0) return;
-      X.save(); X.translate(px + wob(t, 1700 + i * 23 + j, .5), py + wob(t, 1730 + i * 19 + j, .45)); X.scale(k, k);
+      X.save(); X.translate(px, py); X.scale(k, k);
       inkShape(ellPts(0, 0, r, r * .9, 11), '#fff4df', 2.4 / s, .35, 1680 + i * 13 + j);
       X.save(); X.globalAlpha *= .58; inkShape(ellPts(0, 0, r * .84, r * .72, 11), ORIGIN_COLS[i], 0, .4, 1710 + i * 13 + j); X.restore();
       X.restore();
@@ -393,7 +417,7 @@
       if (l === 'O' && t > hit + .18) {
         const e = pop(t, hit + .18, 5, .45), look = E.io(prog(t, hit + .34, hit + .52)) - E.io(prog(t, hit + .62, hit + .82)), wk = t > winkT && t < winkT + .2;
         X.save(); X.translate(-4 - look * 8, -11); X.scale(e, e);
-        X.fillStyle = '#fffdf4'; [-19, 19].forEach(ex => { X.beginPath(); X.ellipse(ex, 0, 13, 15, 0, 0, 7); X.fill(); });
+        [-19, 19].forEach((ex, j) => inkShape(ellPts(ex, 0, 13, 15, 12), '#fffdf4', 0, .4, 1905 + j));
         if (wk) inkLine([[9, 1], [19, -4], [29, 1]], 4.2, PAL.ink, .4, 1901); else dot(19 - look * 5, 2, 5.7);
         dot(-19 - look * 5, 2, 5.7);
         X.restore();
@@ -419,7 +443,7 @@
     const now = W[4][1], all = W[5][1], fiv = W[6][1], rot = W[7][1];
     const shk = kick(t - model, 10) * 14 + kick(t - rot, 10) * 12;
     const c = pushCam(t, five, 90.42, [five, model, rot]);
-    X.save(); X.translate(wob(t, 31, shk), wob(t, 32, shk)); bgCam(() => paperBG('#fbe9c8', .6), c, { par: .9, over: 1.2 }); X.restore();
+    X.save(); X.translate(wob(t, 31, shk), wob(t, 32, shk)); bgCam(() => rubField('#f9dca4', .42, 1871, 2), c, { par: .9, over: 1.2 }); X.restore();
     X.save(); X.translate(wob(t, 31, shk), wob(t, 32, shk));
     X.save(); cam(...c);
     const cx = 960, base = 1000, gap = 330;
@@ -430,16 +454,14 @@
       const u = t < one ? 1 : 1 - E.inC(prog(t, one, model));
       const single = t >= model;
       if (single) modelLine(); else line([[-60, THY], [1980, THY]]);
-      if (!single) originBridge(t, cx, base - 440, gap, u, five);
       if (single) {
         const a = E.outC(prog(t, model - .05, model + .2)), popS = 1 + kick(t - model, 12) * .045;
         dxoModel(t, cx, dxoY, dxoS * popS, model - .04, { alpha: a, hopT: model, winkT: model + .55 });
       } else for (let i = 0; i < 5; i++) {
-        const x = cx + (i - 2) * gap * u, f0 = coats + i * .045, fl = prog(t, f0, f0 + .14), sxx = Math.abs(Math.cos(fl * Math.PI));
-        const drop = (1 - spring(t - five - i * .03 + .09, 4, .5)) * -700;
-        originFlash(t, x, base + drop - 245, i, five + i * .045, .95);
-        if (fl < .5) spr(POSE5[i], x, base + drop, CAST[i].h * 1.08, { flip: x > cx, sx: sxx, shadow: 1, seed: i * 3 });
-        else window.aiCreature(x, base, .62, { sx: (i % 2 ? -1 : 1) * sxx * Math.max(.04, Math.abs(Math.cos((1 - u) * Math.PI / 2))), seed: 900 + i, col: ORIGIN_COLS[i], colorK: 1, build: five + i * .035, shadow: i === 2 ? 1 : 0 });
+        // the five members stay as themselves (no network-creature detour) and fold together into the one model
+        const x = cx + (i - 2) * gap * u, drop = (1 - spring(t - five - i * .03 + .09, 4, .5)) * -700;
+        const squeeze = t < one ? 1 : Math.max(.04, 1 - E.inC(prog(t, one, model)) * .96);
+        spr(POSE5[i], x, base + drop, CAST[i].h * 1.08 * (.55 + .45 * squeeze), { flip: x > cx, sx: squeeze, shadow: 1, seed: i * 3, alpha: clamp(squeeze * 1.6) });
       }
     } else {
       // ── carousel: five burst out from D·X·O and jog round it, landing on "rotate"

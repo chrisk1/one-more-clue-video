@@ -273,7 +273,13 @@ function card(x, y, o = {}) {
   inkShape(rectPts(-w / 2, -h / 2, w, h, 9, 3), stock, 3.6, 1.1, (o.seed || 3) * 13);
   if (back && o.backGlyph !== false && w >= 120) { X.save(); X.globalAlpha *= .55; X.translate(0, 6); GLYPH['?'](Math.min(w, h) / 110); X.restore(); }
   if (!back) {
-    if (o.lines !== false) { X.save(); X.globalAlpha *= .5; X.strokeStyle = PAL.red; X.lineWidth = 2; X.beginPath(); X.moveTo(-w / 2 + 8, -h / 2 + 26); X.lineTo(w / 2 - 8, -h / 2 + 26); X.stroke(); X.strokeStyle = '#9fb7c9'; for (let i = 1; i < 6; i++) { const yy = -h / 2 + 26 + i * (h - 34) / 6; X.beginPath(); X.moveTo(-w / 2 + 8, yy); X.lineTo(w / 2 - 8, yy); X.stroke(); } X.restore(); }
+    if (o.lines !== false) {   // ruled lines drawn as soft coloured pencil (p4Line, pencil.js)
+      X.save(); X.globalAlpha *= .8;
+      const L = window.p4Line, sd = (o.seed || 3) * 13;
+      if (L) { L([[-w / 2 + 8, -h / 2 + 26], [w / 2 - 8, -h / 2 + 26]], 2.4, '#d0574a', .5, sd + 1, false, { passes: 1 });
+        for (let i = 1; i < 6; i++) { const yy = -h / 2 + 26 + i * (h - 34) / 6; L([[-w / 2 + 8, yy], [w / 2 - 8, yy]], 2.0, '#86a8c4', .5, sd + 1 + i, false, { passes: 1 }); } }
+      X.restore();
+    }
     if (o.glyph && GLYPH[o.glyph]) { X.save(); X.translate(0, 10); GLYPH[o.glyph](Math.min(w, h) / 120); X.restore(); }
     if (o.text) { X.save(); X.fillStyle = PAL.ink; X.font = `${o.fs || 34}px SH`; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillText(o.text, 0, 12); X.restore(); }
   }
@@ -292,7 +298,7 @@ function slabCanvas(text, size, col, font, v, edge) {
   c = document.createElement('canvas'); c.width = Math.ceil(tw + pad * 2); c.height = Math.ceil(px * 1.5 + pad);
   const g = c.getContext('2d'); g.font = `${px}px ${font}`; g.textBaseline = 'alphabetic';
   const bx = pad, by = pad * .5 + px * 1.0;
-  g.filter = `url(#boilT${v})`;   // type boils 25% gentler than sprites
+  g.filter = 'none';   // lyric type stays crisp (no displacement boil)
   g.fillStyle = 'rgba(42,29,20,.30)'; g.fillText(text, bx + px * .045, by + px * .06);   // lifted shadow
   if (edge) { g.lineJoin = 'round'; g.strokeStyle = PAL.ink; g.lineWidth = px * .045; g.strokeText(text, bx, by); }
   g.fillStyle = col; g.fillText(text, bx, by);
@@ -407,5 +413,5 @@ function stamp(letter, x, y, size, t0, o = {}) {
   X.restore();
 }
 
-Object.assign(window, { replayType: () => { const ops = TYPE_OPS; TYPE_OPS = []; TYPE_MODE = ''; for (const [m, a, ...args] of ops) { X.save(); X.setTransform(m); X.globalAlpha = a; word(...args); X.restore(); } }, setTypeMode: (m) => { TYPE_MODE = m; if (m === 'record') TYPE_OPS = []; }, PAL, IMG, loadImages, spr, plate, paperBG, post, makePost, inkLine, inkShape, rectPts, ellPts, shadowBlob,
+Object.assign(window, { takeTypeOps: () => { const o = TYPE_OPS; TYPE_OPS = []; return o; }, putTypeOps: (o) => { TYPE_OPS = o; }, replayType: () => { const ops = TYPE_OPS; TYPE_OPS = []; TYPE_MODE = ''; for (const [m, a, ...args] of ops) { X.save(); X.setTransform(m); X.globalAlpha = a; word(...args); X.restore(); } }, setTypeMode: (m) => { TYPE_MODE = m; if (m === 'record') TYPE_OPS = []; }, PAL, IMG, loadImages, spr, plate, paperBG, post, makePost, inkLine, inkShape, rectPts, ellPts, shadowBlob,
   curve, wobbled, row, tapeRow, plen, ptrim, pAt, spline, sag, thread, tack, card, GLYPH, word, slam, hand, measure, stamp, dot });

@@ -1,7 +1,9 @@
 # Workflow prompts
 
 These prompts drove the AI-assisted production of *One More Clue*. They're lightly edited for clarity. Placeholders
-are in `{braces}`. Image-generation prompts are in [IMAGE_PROMPTS.md](IMAGE_PROMPTS.md).
+are in `{braces}`. Image-generation prompts are in [IMAGE_PROMPTS.md](IMAGE_PROMPTS.md) (the original ink
+look) and [PENCIL_PROMPTS.md](PENCIL_PROMPTS.md) (the coloured-pencil restyle). Images were generated with
+GPT Image 2.5 and MAI Image 2.6.
 
 ---
 
@@ -127,3 +129,46 @@ Each round of the creator's notes was handled the same way:
 > notes verbatim plus the exact word and beat times involved. Each agent fixes its own notes and verifies with
 > frame-stepped stills at 960 px (the size viewers actually see). Then render the whole film and have a fresh reviewer
 > check every note: PASS / PARTIAL / FAIL with frame evidence, plus any regressions. Iterate until every note passes.
+
+---
+
+## 8. Coloured-pencil restyle
+
+Once the ink cut was locked, the look was changed without touching the story, timing or camera. The restyle brief, in
+summary:
+
+> Restyle the finished film so that every picture looks drawn by hand in coloured pencil on cream cartridge paper and
+> scanned: soft, warm and charming, like a classic hand-drawn animated film. Keep the storyboard, timing, camera moves
+> and lyrics identical; only the drawing technique changes. Keep the lyric type crisp and legible on top.
+>
+> Redraw every image with the original as the reference, generated opaque on plain paper, then key it out and fit it
+> onto the original's canvas so the shot code doesn't change. Give each character a pencil model sheet and pass it with
+> every pose so the cast stays on-model. Redraw procedural elements (lines, fills, the thread, glows, skies, lights) as
+> pencil too.
+>
+> Settle the look on the first 24 seconds before rolling it out, and compare against the ink cut at exact frames.
+
+**Pulse checks.** Five short clips of the opening were rendered and reviewed before the full rollout. Each round of
+feedback pushed in the same direction: from a neat, digital-looking result towards a looser, softer, genuinely
+hand-made one. The lessons that came out of them became the rules for the rest of the film:
+- Generate drawings small on the sheet so the pencil grain survives on screen.
+- Rub colour in with the side of the pencil; no cross-hatching or neat parallel strokes.
+- Keep values light: no near-black areas.
+- Paper and pencil texture belong to the drawing (world space), never fixed to the screen.
+- Boil comes from genuinely re-drawn drawings, never from noise or displacement.
+- Lyric type stays crisp computer type on top of the picture.
+
+---
+
+## 9. Restyle critique
+
+Run on each full pencil render by a fresh agent that hasn't seen the build reasoning:
+
+> Review the coloured-pencil cut against the ink cut at matching frames. Read-only. Check that every drawing reads as
+> genuine hand-drawn coloured pencil and stays on-model, that nothing kept the old ink look, that cut-out drawings have
+> no pale halos or fringes, that type is crisp, legible at phone size and in the right depth order, and that timing,
+> boil and camera match the ink cut. Check the status of every item from the previous round (fixed / partial / not
+> fixed) and look for regressions. Give a ranked, timestamped list of fixes and a verdict on readiness for the 4K master.
+
+Three rounds were run. The findings went back to the agents that owned the affected drawings or shots, and the third
+round cleared the film for the final 4K render.

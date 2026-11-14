@@ -29,7 +29,9 @@
 <script src="tempo.js"></script>
 <script src="core.js"></script>
 <script src="gfx.js"></script>
+<script src="pencil.js"></script>
 <script src="assets.js"></script>
+<script src="assets_pencil.js"></script>
 <!-- shots register themselves with shot(name, t0, f); later files may add shots that cut into earlier ones -->
 <script src="shots/01_hook.js"></script>
 <script src="shots/02_verse1.js"></script>
@@ -52,6 +54,8 @@ function setup(w, h) {
   makePost(w, h);
   blurTmp = document.createElement('canvas'); blurTmp.width = w; blurTmp.height = h;
   SHOTS.sort((a, b) => a.t0 - b.t0);
+  // Coloured-pencil drawings (assets_pencil.js) replace the ink originals by name; pencil texture swatches are added
+  if (window.P4_ASSETS) { const P = window.P4_ASSETS; for (const e of ASSET_LIST) if (P[e[0]]) e[1] = P[e[0]]; for (const k in P) if (!ASSET_LIST.some(e => e[0] === k)) ASSET_LIST.push([k, P[k]]); }
   return document.fonts.ready.then(() => loadImages(ASSET_LIST)).then(() => 'ready');
 }
 // Directional smear for whips: dx,dy in design px (total smear length)
@@ -70,21 +74,22 @@ function seek(t) {
   X.fillStyle = PAL.paper; X.fillRect(0, 0, CV.width, CV.height);
   X.setTransform(S, 0, 0, S, 0, 0);
   let sh = null; for (const s of SHOTS) if (s.t0 <= t + 1e-6 && (!sh || s.t0 >= sh.t0)) sh = s;
+  // The picture is drawn with lyric type RECORDED (not drawn); pencil post-processing unifies the picture;
+  // then the crisp computer type is replayed on top.
+  setTypeMode('record'); window.__crisp = [];
   if (sh) { X.save(); sh.f(t, t - sh.t0); X.restore(); }
   X.setTransform(S, 0, 0, S, 0, 0);
   if (POST.smear && sh) {
-    // re-render without type, blur, then draw only the type on top (lyrics stay crisp during whips)
-    const P1 = POST;
+    const P1 = POST, ops = takeTypeOps();
     X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = 1; X.fillStyle = PAL.paper; X.fillRect(0, 0, CV.width, CV.height); X.setTransform(S, 0, 0, S, 0, 0);
     setTypeMode('skip'); POST = {}; X.save(); sh.f(t, t - sh.t0); X.restore(); POST = P1;
     X.setTransform(S, 0, 0, S, 0, 0); smear(...POST.smear);
-    if (!typeScratch) { typeScratch = document.createElement('canvas'); }
-    if (typeScratch.width !== CV.width) { typeScratch.width = CV.width; typeScratch.height = CV.height; }
-    const realX = X; X = typeScratch.getContext('2d'); X.setTransform(S, 0, 0, S, 0, 0);
-    setTypeMode('record'); POST = {}; X.save(); sh.f(t, t - sh.t0); X.restore(); POST = P1;
-    X = realX; X.setTransform(S, 0, 0, S, 0, 0); setTypeMode(''); replayType();
+    putTypeOps(ops);
+    setTypeMode('record'); for (const f of window.__crisp) f(); window.__crisp = []; putTypeOps(ops.concat(takeTypeOps()));
   }
+  const typeOps = takeTypeOps(); setTypeMode('');
   post(POST);
+  X.setTransform(S, 0, 0, S, 0, 0); putTypeOps(typeOps); replayType();
   if (POST.fade) { X.save(); X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = POST.fade; X.fillStyle = POST.fadeCol || PAL.paper; X.fillRect(0, 0, CV.width, CV.height); X.restore(); }
   if (window.DEBUG) { X.save(); X.setTransform(S, 0, 0, S, 0, 0); X.font = '22px monospace'; X.fillStyle = '#000'; X.fillText(t.toFixed(2) + ' ' + (sh && sh.name || ''), 12, 28); X.restore(); }
 }

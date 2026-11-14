@@ -94,13 +94,14 @@ function cork(c) {
       X.save(); X.translate(i * TW + (i & 1 ? TW : 0), j * TH + (j & 1 ? TH : 0)); X.scale(i & 1 ? -1 : 1, j & 1 ? -1 : 1);
       X.drawImage(ck, 0, 0, TW + 1, TH + 1); X.restore();
     }
-  X.save(); X.globalCompositeOperation = 'multiply'; X.globalAlpha = .26; X.fillStyle = PAL.peach; X.fillRect(c[0] - hw, c[1] - hh, hw * 2, hh * 2); X.restore();
-  // soft window light falling across the board (wide, uneven diagonal bands)
-  X.save(); X.globalCompositeOperation = 'soft-light';
+  X.save(); X.globalCompositeOperation = 'multiply'; X.globalAlpha = .08; X.fillStyle = PAL.peach; X.fillRect(c[0] - hw, c[1] - hh, hw * 2, hh * 2); X.restore();
+  // soft window light falling across the board: wide, uneven diagonal bands laid in pale coloured pencil
+  X.save(); X.globalCompositeOperation = 'screen';
   for (let i = -2; i < 9; i++) {
-    const x = i * 1350 + hash(i + 3) * 500, w = 260 + hash(i + 9) * 420, a = .35 + hash(i + 17) * .35;
-    const g = X.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, 'rgba(255,240,200,0)'); g.addColorStop(.25, `rgba(255,236,190,${a})`); g.addColorStop(.75, `rgba(255,236,190,${a})`); g.addColorStop(1, 'rgba(255,240,200,0)');
-    X.save(); X.translate(0, 1300); X.transform(1, 0, -.9, 1, 0, 0); X.translate(0, -1300); X.fillStyle = g; X.fillRect(x, -800, w, 4200); X.restore();
+    const x = i * 1350 + hash(i + 3) * 500, w = 260 + hash(i + 9) * 420, a = .22 + hash(i + 17) * .2;
+    X.save(); X.translate(0, 1300); X.transform(1, 0, -.9, 1, 0, 0); X.translate(0, -1300);
+    for (let k = 0; k < 3; k++) { const inset = w * .16 * k; X.globalAlpha = a * (.45 + k * .3); X.fillStyle = p4Pat('#c9a35a', 'tex_soft'); X.fillRect(x + inset, -800, w - inset * 2, 4200); }
+    X.restore();
   }
   X.restore();
 }
@@ -135,8 +136,8 @@ function clutter(t) {
 function puff(x, y, t, t0, w) {
   if (t < t0 || t > t0 + .6) return;
   const d = E.outC(prog(t, t0, t0 + .5));
-  X.save(); X.globalAlpha *= vanish(t, t0 + .25, .3) * .55; X.fillStyle = '#efdfbd';
-  for (let j = 0; j < 9; j++) { const s = j % 2 ? 1 : -1, a = j / 9; X.beginPath(); X.arc(x + s * (w * .5 + d * 120 * (.6 + a)), y + (a - .5) * w * .5 - d * 40 * a, 18 * (1 - d * .7) + 6, 0, 7); X.fill(); }
+  X.save(); X.globalAlpha *= vanish(t, t0 + .25, .3) * .6;
+  for (let j = 0; j < 9; j++) { const s = j % 2 ? 1 : -1, a = j / 9; p4Fill(() => { X.beginPath(); X.arc(x + s * (w * .5 + d * 120 * (.6 + a)), y + (a - .5) * w * .5 - d * 40 * a, 18 * (1 - d * .7) + 6, 0, 7); }, '#efdfbd', { wash: .8, grain: .8, tex: 'tex_soft' }); }
   X.restore();
 }
 const shiver = (t, x) => t > tD() ? Math.sin((t - tD()) * 26 + x * .01) * kick(t - tD(), 5) * .05 : 0;

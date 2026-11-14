@@ -43,8 +43,9 @@ function killingPart(t, li, o = {}) {
   }
   const out = o.out ? vanish(t, o.out, .12) : 1;
   X.save(); X.globalAlpha *= out;
-  row([['ONE', tOne, { col: PAL.cream, edge: true }], ['MORE', tMore, { col: PAL.cream, edge: true }]], 960, 250, 230, { from: 1.2, gap: .42 });
-  slam('CLUE', 960, 900, 300, tClue, { col: PAL.red, edge: true, from: 3 });
+  // bake: drawn in picture order so the pipe, the "let it" plate and the cast's fists cover these words
+  row([['ONE', tOne, { col: PAL.cream, edge: true }], ['MORE', tMore, { col: PAL.cream, edge: true }]], 960, 250, 230, { from: 1.2, gap: .42, bake: true });
+  slam('CLUE', 960, 900, 300, tClue, { col: PAL.red, edge: true, from: 3, bake: true });
   X.restore();
 }
 window.killingPart = killingPart;
@@ -57,16 +58,26 @@ function fogReveal(t, scene, wipes, o = {}) {
   scene();
   if (!fogC) fogC = document.createElement('canvas');
   if (fogC.width !== CV.width) { fogC.width = CV.width; fogC.height = CV.height; }
-  const g = fogC.getContext('2d');
+  const g = fogC.getContext('2d'), M = X.getTransform(), fr = o.frost ?? 1, fogCol = o.fog || '#f4efe6';
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
-  if (o.frost != null) { g.clearRect(0, 0, fogC.width, fogC.height); g.filter = `blur(${Math.max(2, Math.round(16 * S))}px)`; g.drawImage(CV, 0, 0); g.filter = 'none'; g.globalAlpha = o.frost; }
-  g.fillStyle = o.fog || '#f4efe6'; g.fillRect(0, 0, fogC.width, fogC.height);
-  g.globalAlpha = .5 * (o.frost ?? 1); if (IMG.paper) g.drawImage(IMG.paper, 0, 0, fogC.width, fogC.height);
-  g.globalAlpha = 1; g.globalCompositeOperation = 'destination-out'; g.setTransform(S, 0, 0, S, 0, 0);
+  g.clearRect(0, 0, fogC.width, fogC.height);
+  if (o.frost != null) { g.filter = `blur(${Math.max(2, Math.round(12 * S))}px)`; g.drawImage(CV, 0, 0); g.filter = 'none'; }
+  // the frost is drawn ON the glass (world space, moves with the camera): a pale wash with soft white pencil
+  // rubbed over it, slightly uneven — no screen-locked paper overlay
+  g.setTransform(M);
+  const FX = -600, FY = -600, FW = DW + 1200, FH = DH + 1200;
+  g.globalAlpha = o.frost != null ? fr * .9 : 1; g.fillStyle = fogCol; g.fillRect(FX, FY, FW, FH);
+  g.globalAlpha = fr * .55; g.fillStyle = p4Pat(p4Shade(fogCol, -.07), 'tex_soft'); g.fillRect(FX, FY, FW, FH);
+  g.save(); g.translate(41, 67); g.globalAlpha = fr * .7; g.fillStyle = p4Pat('#fffcf5', 'tex_soft'); g.fillRect(FX, FY, FW, FH); g.restore();
+  // clearing uses a solid fill (the last fillStyle was a grain pattern, which only rubbed the frost partly away)
+  g.globalAlpha = 1; g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
   const blob = (x, y, r, i, j = 0) => {
-    g.beginPath();
-    for (let a = 0; a <= 24; a++) { const an = a / 24 * Math.PI * 2, rr = r * (1 + (hash2(a + j * 31, i) - .5) * .25); g.lineTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr * .85); }
-    g.closePath(); g.fill();
+    for (const [rk, ak] of [[1.14, .4], [1, 1]]) {           // soft rubbed edge: a lighter outer pass, then the clear patch
+      g.globalAlpha = ak; g.beginPath();
+      for (let a = 0; a <= 24; a++) { const an = a / 24 * Math.PI * 2, rr = r * rk * (1 + (hash2(a + j * 31, i) - .5) * .25); g.lineTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr * .85); }
+      g.closePath(); g.fill();
+    }
+    g.globalAlpha = 1;
   };
   wipes.forEach(([tw, x, y, r], i) => {
     if (t < tw) return;
@@ -78,7 +89,8 @@ function fogReveal(t, scene, wipes, o = {}) {
     }
     blob(x, y, r * E.outBack(prog(t, tw, tw + .22), 1.2), i);
   });
-  if (o.clearAll != null && t > o.clearAll) { g.globalAlpha = E.outC(prog(t, o.clearAll, o.clearAll + .3)); g.fillRect(0, 0, DW, DH); }
+  if (o.clearAll != null && t > o.clearAll) { g.globalAlpha = E.outC(prog(t, o.clearAll, o.clearAll + .3)); g.fillRect(FX, FY, FW, FH); }
+  if (o.clearAll != null && t >= o.clearAll + .3) return;          // fully clear: no frost residue at all
   X.save(); X.setTransform(1, 0, 0, 1, 0, 0); X.drawImage(fogC, 0, 0); X.restore();
 }
 window.fogReveal = fogReveal;
@@ -124,7 +136,7 @@ function hookPlate1(t) {
   const top = [], bot = [];
   for (let i = 0; i <= 16; i++) { const x = lerp(x0, x1, i / 16); top.push([x, Y - ph / 2 + (hash(i + 41) - .5) * 16]); bot.push([x, Y + ph / 2 + (hash(i + 67) - .5) * 16]); }
   shadowBlob(x0 + pw * k / 2 + 14, Y + 20, pw * k * .52, ph * .54, .32);
-  inkShape([...top, ...bot.reverse()], '#fbf5e6', 5, 1, 762);
+  pkPaper([...top, ...bot.reverse()], '#fbf5e6', 5, 762, { shade: [18, 24], shadeA: .4 });
   X.restore();
   const xa = 960 - (w1 + gap + w2) / 2;
   slam('let it', xa + w1 / 2, L1 + 26, 120, K1_LET, { font: 'FBo', col: PAL.ink, from: 1.15 });
@@ -157,7 +169,7 @@ shot('kill1', 47.53, (t) => {
     const puff = t >= K1_THR ? kick(t - K1_THR, 7) * .4 : prog(t, K1_THR - .12, K1_THR) * .25;
     const sq = t >= K1_COME ? kick(t - K1_COME, 12) * .1 : 0;
     pipeGulp(px, MOUTH1[1], bx, amp, puff, sq);
-    if (t < K1_THR + .05) { X.save(); X.globalAlpha *= .6 * prog(t, K1_THR - .5, K1_THR - .1); X.fillStyle = PAL.ink; X.beginPath(); X.ellipse(MOUTH1[0] - 4, MOUTH1[1] + 18, 26, 56 * (1 + puff), 0, 0, 7); X.fill(); X.restore(); }
+    if (t < K1_THR + .05) { X.save(); X.globalAlpha *= .7 * prog(t, K1_THR - .5, K1_THR - .1); const mq = pkBlobPts(MOUTH1[0] - 4, MOUTH1[1] + 18, 26, 56 * (1 + puff), 31, 14, .08); p4Fill(() => curve(mq, true), '#4a372a', { wash: .7, grain: .9, tex: 'tex_soft' }); X.restore(); }
     burst(MOUTH1[0] - 40, MOUTH1[1] + 18, K1_THR, { n: 7, r: 70, a0: Math.PI * .55, arc: Math.PI * .9 });
   }
   // the clue: out of the mouth, a quick tumbling arc, pinned beside the "?" — the thread snaps across to it
@@ -181,11 +193,19 @@ shot('kill1', 47.53, (t) => {
 // Frosted glass: blurry shapes behind it. Each sung word, one of the panel scrubs a patch clear — nose squashed flat
 // against the pane. On "VIEW" the glass clears and they all pop back, unsquished, beaming.
 const WIPERS = [['hyp', 0, 680, 830, 420], ['chal', 1, 1250, 800, 450], ['tc', 2, 420, 850, 420], ['st', 3, 1530, 870, 390], ['ck', 5, 965, 900, 410]];
+// the window must be see-through: pane centres (fractions of the image) for pkSprKeyed (03_verse2.js)
+const WIN_PANES = [[.296, .296], [.5, .296], [.70, .296], [.296, .675], [.5, .675], [.70, .675]];
 shot('fog1', beat(76), (t) => {
   const W = LINES[11].words, view = W[6][1];
   const push = E.io(prog(t, 50.12, view)), pk = kick(t - view, 8) * (t > view ? 1 : 0);
   const fc = [960, 560, 1 + push * .035 + pk * .03, 0];
-  bgCam('room', fc, { z: 1.25, cy: .45, par: .9, over: 1.2 });
+  // the room behind the panes, rubbed a little deeper with warm pencil so the cleared view reads strong (world space)
+  bgCam(() => {
+    plate('room', { z: 1.25, cy: .45 });
+    X.save(); X.globalCompositeOperation = 'multiply';
+    p4Fill(() => { X.beginPath(); X.rect(-300, -300, DW + 600, DH + 600); }, '#e6cf9e', { alpha: .5, wash: .6, grain: .5, tex: 'tex_soft' });
+    X.restore();
+  }, fc, { par: .9, over: 1.2 });
   X.save(); cam(...fc);
   fogReveal(t, () => {
     WIPERS.forEach(([n, wi, x, y, h], i) => {
@@ -200,7 +220,7 @@ shot('fog1', beat(76), (t) => {
       }
     });
   }, WIPERS.map(([, wi, x, y, h]) => [W[wi][1], x, y - h * .08, h * .52]), { clearAll: view - .05, frost: .72, smear: { d: .34 } });
-  spr('window', 960, 1130, 1300, { boil: true });
+  pkSprKeyed('window', WIN_PANES, 960, 1130, 1300);
   X.restore();
   X.save(); X.globalAlpha *= vanish(t, 51.95, .08);
   row([['LITTLE', W[0][1]], ['by', W[1][1], { size: 90, font: 'FBo' }], ['LITTLE,', W[2][1]]], 960, 210, 150, { from: 1.7 });
@@ -228,8 +248,8 @@ shot('reroute', 52.02, (t) => {
   const rc = [960 + wob(t, 3, shake * 6), 540, 1 + cl * .03 + kick(t - tToo, 9) * (t > tToo ? .03 : 0), wob(t, 5, shake * .01)];
   bgCam(() => paperBG('#efe4c6', .7), rc, { par: .9, over: 1.22 });
   X.save(); cam(...rc);
-  X.save(); X.globalAlpha *= .35; X.setLineDash([10, 16]); X.strokeStyle = PAL.inkSoft; X.lineWidth = 4;
-  [[[100, 980], [600, 900], [1200, 980], [1900, 900]], [[300, 100], [500, 400], [400, 700]], [[1500, 1050], [1600, 700], [1850, 600]]].forEach(r => { curve(spline(r, 10)); X.stroke(); });
+  X.save(); X.globalAlpha *= .5;
+  [[[100, 980], [600, 900], [1200, 980], [1900, 900]], [[300, 100], [500, 400], [400, 700]], [[1500, 1050], [1600, 700], [1850, 600]]].forEach((r, ri) => pkDash(spline(r, 10), 10, 16, 4, P4.lineSoft, { seed: 620 + ri * 50 }));
   X.restore();
   for (let i = 0; i < 9; i++) { const x = 160 + hash(i) * 1600, y = 120 + hash(i + 3) * 860; X.save(); X.globalAlpha *= .4; inkLine([[x - 40, y + 20], [x, y - 20], [x + 40, y + 20]], 4, PAL.inkSoft, 1, 600 + i); X.restore(); }
   thread(MAP_A, { k: Math.max(.002, uA), w: 13, tip: !onB });
@@ -238,7 +258,7 @@ shot('reroute', 52.02, (t) => {
   card(1180, 620, { w: 170, h: 210, glyph: fl < .5 ? 'tick' : 'cross', flip: fl < .5 ? fl : 1 - fl, rot: -.05, seed: 610, s: 1 + kick(t - tChange, 10) * .15 });
   tack(920, 560, 1.1); card(220, 900, { w: 150, h: 180, glyph: '?', seed: 611, rot: .06 }); tack(220, 820, 1.1);
   const glow = t > tToo ? E.outC(prog(t, tToo, tToo + .2)) : 0;
-  if (glow > 0) { X.save(); X.globalAlpha *= .55 * glow; X.fillStyle = PAL.lemon; X.beginPath(); X.arc(1700, 400, 150 + kick(t - tToo, 6) * 40, 0, 7); X.fill(); X.restore(); burst(1700, 400, tToo, { n: 12, r: 150, col: PAL.brassDk }); }
+  if (glow > 0) { pkRub(1700, 400, 150 + kick(t - tToo, 6) * 40, 150 + kick(t - tToo, 6) * 40, '#f6dc7a', { alpha: .9 * glow, seed: 670, layers: 5, step: .16, amp: .1 }); burst(1700, 400, tToo, { n: 12, r: 150, col: PAL.brassDk }); }
   card(1700, 400, { w: 180, h: 220, glyph: 'bulb', seed: 612, rot: .04, s: 1 + kick(t - tToo, 10) * .12 * (t > tToo) }); if (t > tToo) tack(1700, 300, 1.2, { pressed: E.outBack(prog(t, tToo, tToo + .08)) });
   // roadblock springs up in the car's path on "CHANGE"
   if (t > tChange - .04) { const s = spring(t - tChange + .04, 3.6, .38); spr('pb_roadblock', 1190, 548, 150 * s, { seed: 7, rot: (1 - s) * .3, shadow: 1 }); }
@@ -253,7 +273,7 @@ shot('reroute', 52.02, (t) => {
   // dust / skid marks / reversing beeps
   if (moving) for (let j = 1; j <= 4; j++) {
     const uj = u + (rev ? 1 : -1) * j * .018; if (uj <= 0) continue; const q = pAt(path, uj), a = (1 - j / 5) * .45;
-    X.save(); X.globalAlpha *= a; inkShape(ellPts(q[0] + wob(t, j, 4) - (rev ? -1 : 1) * 60, q[1] - 6 - j * 6, 14 + j * 7, 10 + j * 5, 9), '#efe2c4', 3, 1.2, 640 + j); X.restore();
+    X.save(); X.globalAlpha *= a; inkShape(ellPts(q[0] + (hash2(j, 641) - .5) * 8 - (rev ? -1 : 1) * 60, q[1] - 6 - j * 6, 14 + j * 7, 10 + j * 5, 9), '#efe2c4', 3, 1.2, 640 + j); X.restore();
   }
   if (t > tChange && t < tThen + .2) { X.save(); X.globalAlpha *= .5 * (1 - prog(t, tThen - .1, tThen + .2)); inkLine([[p[0] - 240, p[1] - 6], [p[0] - 90, p[1] - 8]], 8, PAL.ink, .6, 650); inkLine([[p[0] - 215, p[1] + 12], [p[0] - 65, p[1] + 10]], 8, PAL.ink, .6, 651); X.restore(); }
   burst(p[0] + 165, p[1] - 150, tChange, { n: 7, r: 60, a0: -Math.PI * .9, arc: Math.PI * .8 });
@@ -284,7 +304,7 @@ shot('move', 56.12, (t) => {
   // Challenger, sneaking out from behind her
   if (t > b88 + .05) {
     const k = E.outBack(prog(t, b88 + .05, b88 + .4), 1.4);
-    ps('chal_lean', lerp(1540, 1270, k), 1175, .6, { flip: true, seed: 6, rot: -.04 * k + wob(t, 6, .006) });
+    ps('chal_lean', lerp(1540, 1270, k), 1175, .6, { flip: true, seed: 6, rot: -.04 * k + Math.sin(t * 2.3) * .006 });
   }
   ps(pose, 1470, 1110 - hop * 26, .64, { flip: true, seed: 2, shadow: 1, sx: 1 / sq, sy: sq, rot: pose === 'pb_tc_pick' ? -.03 * hop : 0 });
   if (pose === 'pb_tc_think') {                              // little thought dots

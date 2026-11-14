@@ -1,11 +1,12 @@
 # One More Clue
 
-A 2 min 17 s hand-drawn, paper-textured music video for the song **"One More Clue"**, inspired by the paper
-*"Sequential diagnosis in medicine using language models"* (*Science*, 22 October 2026).
+A 2 min 17 s hand-drawn music video for the song **"One More Clue"**, inspired by the paper
+*"Sequential diagnosis in medicine using language models"* (*Science*, 22 October 2026). Every picture looks as if it
+was drawn by hand in coloured pencil on cream cartridge paper and scanned, with crisp kinetic lyric type on top.
 
 The whole film is code. Each frame is a pure JavaScript function of time `t`, drawn on an HTML canvas from
-AI-generated hand-drawn sprites, cut-paper lyric typography and procedural ink. Headless Chrome (Puppeteer) captures
-every frame, and ffmpeg encodes them with the song.
+AI-generated coloured-pencil drawings, procedural pencil lines and fills, and lyric typography. Headless Chrome
+(Puppeteer) captures every frame, and ffmpeg encodes them with the song.
 
 ---
 
@@ -88,11 +89,14 @@ the build reasoning, critiqued each cut. The prompts that drove each stage are i
 
 ### In numbers
 
-- **12 versions** from first draft to final cut.
-- **8 rounds of the creator's frame-accurate notes**, with more than 70 individual timestamped notes.
-- **7 independent director's critiques** of the full film, each checking sync frame by frame against the sung words.
-- **About 180 image-generation prompts** for characters, poses, props and background plates (all in
-  [`prompts/IMAGE_PROMPTS.md`](prompts/IMAGE_PROMPTS.md)), plus many more candidates that were reviewed and rejected.
+- **14 versions** from first draft to final cut: 12 in a cut-paper and ink look, then two coloured-pencil restyles.
+- **8 rounds of the creator's frame-accurate notes** on the ink cut, with more than 70 individual timestamped notes.
+- **7 independent director's critiques** of the ink cut, each checking sync frame by frame against the sung words.
+- **5 pulse-check clips and 3 independent critique rounds** for the coloured-pencil restyle.
+- **About 180 image-generation prompts** for the original characters, poses, props and background plates (in
+  [`prompts/IMAGE_PROMPTS.md`](prompts/IMAGE_PROMPTS.md)), and **about 430 coloured-pencil drawings** that redraw
+  every one of them, including two re-drawn "boil" frames per sprite (in
+  [`prompts/PENCIL_PROMPTS.md`](prompts/PENCIL_PROMPTS.md)).
 - **Every lyric word timed to its sung onset**, and every beat-locked move driven by a measured tempo map.
 
 ### The arc
@@ -121,6 +125,19 @@ the build reasoning, critiqued each cut. The prompts that drove each stage are i
    lights-down spotlight, a new font, clearer story beats (the simulator typing and filing its synthetic result), and
    removing gags that didn't earn their place. Each round was split across agents, verified frame by frame at viewing
    size, and checked note by note by an independent reviewer before delivery.
+8. **A first coloured-pencil restyle.** With the story, timing and camera locked, the whole film was restyled as a
+   pure style edit: every image was redrawn with the original as the reference and fitted onto the original's canvas,
+   so no shot code had to move. The first attempt was a clean, delicate picture-book look. The feedback was that it
+   still felt too neat and digital; the aim was a drawing that genuinely looks made by hand.
+9. **Pulse checks, then the full rollout.** The second restyle was settled on the first 24 seconds before touching
+   the rest. Five short pulse-check clips pushed, round by round, towards a looser and softer hand: drawings generated
+   small on the sheet so the pencil grain survives, colour rubbed in rather than cross-hatched, light values with no
+   near-black areas, paper texture that moves with the picture instead of sitting on the screen, real re-drawn boil
+   instead of digital wobble, and lyric type kept crisp and legible on top.
+10. **Three critique rounds on the restyle.** Independent reviewers compared the full pencil cut against the ink cut
+    at exact frames. The rounds focused on keeping the cast on-model, removing pale halos around cut-out drawings,
+    fixing type that printed over the picture, redrawing glows, skies and stage lights as rubbed pencil, and
+    legibility at phone size, until the third pass judged it ready for the 4K master.
 
 ### What made the difference
 
@@ -130,6 +147,7 @@ the build reasoning, critiqued each cut. The prompts that drove each stage are i
   intuition missed.
 - **Fresh eyes.** Reviewers who never saw the build reasoning were the most valuable part of the loop.
 - **Cut what doesn't read.** Several gags were built and then removed; a clear frame beat a busy one every time.
+- **Restyle on a short slice first.** Settling the look on 24 seconds made each round of feedback fast and cheap.
 
 ---
 
@@ -137,12 +155,14 @@ the build reasoning, critiqued each cut. The prompts that drove each stage are i
 
 | File | Purpose |
 |---|---|
-| `src/film.html` | Page shell: fonts, SVG "boil" filters, `setup(w, h)`, `seek(t)`, camera and post-processing |
+| `src/film.html` | Page shell: fonts, `setup(w, h)`, `seek(t)`, camera, post-processing and the type-on-top pass |
 | `src/core.js` | Timing (`beat(n)`, `beatAt(t)` from the tempo map), easings, springs and kicks, seeded noise, lyric lookup, shot registry |
-| `src/gfx.js` | Drawing library: boiled sprites, plates, paper and post, ink lines, the thread, cards and glyphs, cut-paper type, `slam()` and `stamp()` |
+| `src/gfx.js` | Drawing library: sprites, plates, paper and post, lines, the thread, cards and glyphs, lyric type, `slam()` and `stamp()` |
+| `src/pencil.js` | Coloured-pencil layer, loaded after `gfx.js`: pencil lines, rubbed fills, thread and tacks, boil-frame cycling |
 | `src/tempo.js` | Measured beat times (generated from `audio/tempomap.json`) |
 | `src/lyrics.js` | Word onset times (generated from `lyrics_timed.json`) |
-| `src/assets.js` | Sprite and plate list (generated by `tools/make_assets_js.py`) |
+| `src/assets.js` | Original ink sprite and plate list (generated by `tools/make_assets_js.py`) |
+| `src/assets_pencil.js` | Coloured-pencil drawings that replace the originals by name (generated by `tools/pencil/make_assets_js.py`) |
 | `src/shots/01–09_*.js` | One file per song section; each registers its shots with `shot(name, t0, fn)` |
 | `render.js`, `frames.js` | Chunked parallel renderer; single-frame renderer for review |
 
@@ -151,14 +171,20 @@ Techniques:
 - **Pure function of time.** `seek(t)` picks the latest shot with `t0 ≤ t` and draws it. There's no state between
   frames and no `Math.random` (all randomness is seeded hashing), so any frame can be rendered in any order, and
   chunks can render in parallel.
-- **Boil.** Sprites and type are pre-baked through three SVG turbulence/displacement filters and cycled at 12 fps
-  ("on twos"), while motion stays smooth at the full frame rate. Type boils 25% more gently than drawings.
+- **Boil.** Every sprite has three genuinely re-drawn drawings (`name`, `name~1`, `name~2`) cycled at 12 fps ("on
+  twos"), while motion stays smooth at the full frame rate. Nothing is wobbled with noise; backgrounds and type hold
+  still.
+- **Coloured pencil everywhere.** Procedural lines and fills (the thread, cards, glows, skies, stage lights) are drawn
+  with pencil texture swatches as world-space grain masks, so the paper and pencil texture move and zoom with the
+  picture rather than sitting on the screen. Values stay light: darks are mid-indigo or brown pencil, never black.
+- **Crisp type on top.** Lyric type is recorded while the picture is drawn and replayed on top afterwards, so it
+  stays crisp. Words that sit behind props are drawn in picture order instead (`bake: true`).
 - **Measured tempo map.** `beat(n)` interpolates per-beat drum onsets, so beat-locked moves stay locked through the
   song's rubato. `slam()` and `stamp()` lead the audio by about one frame, so hits read as on the beat.
 - **Camera-locked sets.** `bgCam()` draws a background under the same camera as the foreground, with gentle parallax
   and a fixed overscan. The set pans and zooms with the action instead of floating behind it.
-- **Motion smear.** During fast camera moves, the frame is drawn twice: once blurred along the velocity, and once with
-  crisp lyric type laid over it.
+- **Motion smear.** During fast camera moves, the picture is drawn blurred along the velocity, with crisp lyric type
+  laid over it.
 
 ### Regenerating data
 
@@ -181,19 +207,37 @@ node tools/trim.js assets/sprites <outdir>/*.png # alpha-trim new sprites into p
 python3 tools/make_assets_js.py                 # register them in src/assets.js
 ```
 
+### Coloured-pencil drawings
+
+Each pencil drawing is generated opaque on a plain cream sheet (prompts in `prompts/PENCIL_PROMPTS.md`), then:
+
+```bash
+pip install pillow numpy scipy
+python3 tools/pencil/build.py <gendir> [names...]    # key out the paper, fit onto the original's canvas -> assets/pencil/*.webp
+python3 tools/pencil/peel.py --paper-from <gendir> assets/pencil/<name>*.webp   # remove the paper fringe outside the contour
+python3 tools/pencil/holes.py --paper-from <gendir> assets/pencil/<name>*.webp  # cut out paper trapped inside (between legs, arm loops)
+python3 tools/pencil/make_assets_js.py               # register them in src/assets_pencil.js
+```
+
+`build.py` keeps every drawing on the original asset's canvas, so the shot code works unchanged. Busts that run off
+the bottom of the sheet are listed in `tools/pencil/cuts.json`. Boil variants (`name~1`, `name~2`) are registered onto
+their base drawing; run `holes.py` on a base and its variants together, since variants are checked against the fixed
+base. Drawings are stored as lossless WebP.
+
 ---
 
 ## Repository layout
 
 ```
-assets/ref/        character reference sheet and per-character crops (used as image-generation references)
-assets/sets/       background plates
-assets/sprites/    characters, props and poses (typing/, windows/ sub-folders)
+assets/pencil/     coloured-pencil drawings and boil frames used by the film (texture/: pencil grain swatches)
+assets/ref/        character sheet and crops; pencil/ holds the coloured-pencil model sheets (generation references)
+assets/sets/       original ink background plates
+assets/sprites/    original ink characters, props and poses (typing/, windows/ sub-folders)
 audio/             measured tempo map
 fonts/             Fraunces, Fredoka and Bricolage Grotesque (SIL Open Font License; licences included)
 prompts/           workflow prompts and the full image-prompt library
 src/               engine and shots
-tools/             image generation, trimming, contact sheets and data generators
+tools/             image generation, trimming, contact sheets and data generators; pencil/ for the pencil drawings
 lyrics_timed.json  per-word sung onset times (source of truth)
 song.mp3           the soundtrack
 ```
@@ -207,6 +251,7 @@ song.mp3           the soundtrack
   [Fredoka](https://github.com/hafontia/Fredoka-One) and
   [Bricolage Grotesque](https://github.com/ateliertriay/bricolage), all under the SIL Open Font License 1.1 (see
   `fonts/`).
-- **Images:** generated with the OpenAI image API from the prompts in `prompts/IMAGE_PROMPTS.md`.
+- **Images:** generated with **GPT Image 2.5** and **MAI Image 2.6** from the prompts in
+  `prompts/IMAGE_PROMPTS.md` and `prompts/PENCIL_PROMPTS.md`.
 - **Rendering:** [Puppeteer](https://pptr.dev/) and [ffmpeg](https://ffmpeg.org/). Audio analysis used demucs,
   librosa and whisper.cpp.

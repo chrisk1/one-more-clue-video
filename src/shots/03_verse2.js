@@ -2,6 +2,90 @@
 // grows ... Then choose the next step. D-X-O." Also defines the D-X-O stamp sequence (dxo) reused in chorus 1.
 'use strict';
 
+// ── soft-pencil helpers (also used by 04_chorus1.js) ──────────────────────────────────────────
+// organic, static (time-independent) wobbly ellipse outline
+function pkBlobPts(x, y, rx, ry, seed = 1, n = 22, amp = .12) {
+  return Array.from({ length: n }, (_, i) => {
+    const a = i / n * Math.PI * 2, r = 1 + (hash2(i, seed) - .5) * amp + Math.sin(a * 2 + seed) * amp * .3 + Math.sin(a * 3 + seed * 1.7) * amp * .2;
+    return [x + Math.cos(a) * rx * r, y + Math.sin(a) * ry * r];
+  });
+}
+// colour rubbed in with soft pencil: heavier in the middle, lighter toward a wobbly edge (never airbrushed)
+function pkRub(x, y, rx, ry, col, o = {}) {
+  const L = o.layers ?? 3, seed = o.seed ?? 1, st = o.step ?? .22;
+  X.save(); X.globalAlpha *= o.alpha ?? 1;
+  for (let k = 0; k < L; k++) {
+    const s = 1 - k * st, q = pkBlobPts(x + (hash2(k, seed + 3) - .5) * rx * .1, y + (hash2(k, seed + 7) - .5) * ry * .1, rx * s, ry * s, seed + k * 13, o.n ?? 22, o.amp ?? .12);
+    p4Fill(() => curve(q, true), col, { alpha: (k ? 1.5 : 1.9) / (L + 1), wash: o.wash ?? .5, grain: o.grain ?? .8, tex: 'tex_soft' });
+  }
+  X.restore();
+}
+// dashed pencil line: short soft pencil strokes along a polyline
+function pkDash(pts, dash, gap, w, col, o = {}) {
+  const L = plen(pts); if (L < 1) return;
+  X.save(); X.globalAlpha *= o.alpha ?? 1;
+  const v = o.vary ?? 0;                                   // vary: ± fraction of random variation in dash/gap lengths
+  for (let s = 0, i = 0, d = dash; s < L; s += d + gap * (1 + v * (hash2(i, (o.seed ?? 1) + 5) - .5) * 2), i++) {
+    d = dash * (1 + v * (hash2(i + 1, (o.seed ?? 1) + 3) - .5) * 2);
+    const seg = []; for (let j = 0; j <= 3; j++) seg.push(pAt(pts, Math.min(1, (s + d * j / 3) / L)));
+    p4Line(seg, w, col, .5, (o.seed ?? 1) + i * 3, false, { passes: 1, rough: .6 });
+  }
+  X.restore();
+}
+// a big paper/plate shape: paper-light base, colour rubbed in softly, a soft shade hugging the lower-right edge
+// (follows the wobbly outline — no straight diagonal shading), brown pencil contour
+function pkPaper(pts, col, w = 4, seed = 1, o = {}) {
+  const q = wobbled(pts, o.amp ?? 1, seed), sh = o.shade ?? [16, 20];
+  X.save(); X.fillStyle = p4Shade(col, .45); curve(q, true); X.fill(); X.restore();
+  p4Fill(() => curve(q, true), col, { wash: .45, grain: .55, tex: 'tex_soft' });
+  X.save(); curve(q, true); X.clip();
+  const r = q.map(([x, y]) => [x - sh[0], y - sh[1]]);
+  p4Fill(() => { X.beginPath(); X.rect(-1e4, -1e4, 2e4, 2e4); X.moveTo(r[0][0], r[0][1]); for (let i = r.length - 1; i >= 0; i--) X.lineTo(r[i][0], r[i][1]); X.closePath(); }, p4Shade(col, -.18), { alpha: o.shadeA ?? .45, wash: .3, grain: .6, tex: 'tex_soft' });
+  X.restore();
+  if (w) p4Line(pts, w * P4.lineK, P4.line, o.amp ?? 1, seed + 50, true);
+}
+// Some fitted sprites (window, scales) are meant to have see-through holes (panes, the gap between pan strings). If a
+// drawing comes back with those holes filled with pale paper, flood-fill the pale paper from the given seed points
+// (fractions of the image) and clear it, once per image. Pencil lines stop the fill; nothing else is touched.
+const _pkKey = new Map();
+function pkKeyed(fr, seeds) {
+  const im = IMG[fr]; if (!im) return null;
+  const e = _pkKey.get(fr); if (e && e.src === im) return e.c;
+  const W = im.width, H = im.height, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+  const id = g.getImageData(0, 0, W, H), d = id.data, seen = new Uint8Array(W * H);
+  const pale = (p) => { const i = p * 4, r = d[i], gg = d[i + 1], b = d[i + 2]; return d[i + 3] > 200 && r + gg + b > 660 && Math.max(r, gg, b) - Math.min(r, gg, b) < 42; };
+  let cut = 0;
+  for (const [fx, fy] of seeds) {
+    const s0 = Math.round(fy * H) * W + Math.round(fx * W); if (seen[s0] || !pale(s0)) continue;
+    const st = [s0]; seen[s0] = 1;
+    while (st.length) {
+      const p = st.pop(), x = p % W; d[p * 4 + 3] = 0; cut++;
+      for (const q of [x > 0 ? p - 1 : -1, x < W - 1 ? p + 1 : -1, p - W, p + W]) if (q >= 0 && q < W * H && !seen[q] && pale(q)) { seen[q] = 1; st.push(q); }
+    }
+  }
+  if (cut > 400) g.putImageData(id, 0, 0);
+  const out = cut > 400 ? c : im;
+  _pkKey.set(fr, { src: im, c: out });
+  return out;
+}
+// spr() equivalent (same 3-drawing boil cycle as the engine) drawing the keyed image; anchor bottom-centre
+function pkSprKeyed(name, seeds, x, y, h, o = {}) {
+  const im = IMG[name]; if (!im) return;
+  let n = 1; while (IMG[name + '~' + n]) n++;
+  const st = Math.floor(T * 12 + 1e-6) + Math.floor(hash(name.length * 7.3 + (o.seed || 0) * 3.1) * 3), i = ((st % n) + n) % n;
+  const fr = i ? name + '~' + i : name, src = pkKeyed(fr, seeds), hh = h * IMG[fr].height / im.height, ww = hh * IMG[fr].width / IMG[fr].height;
+  X.drawImage(src, x - ww / 2, y - hh, ww, hh);
+}
+// mirrored paper tiles so a zoomed-out/rotated background camera never shows the edge of the sheet (world space)
+function pkPaperTiles(col, k, n = 2) {
+  for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) {
+    X.save(); X.translate(DW / 2 + i * DW, DH / 2 + j * DH); X.scale(i & 1 ? -1 : 1, j & 1 ? -1 : 1); X.translate(-DW / 2, -DH / 2);
+    X.beginPath(); X.rect(-.5, -.5, DW + 1, DH + 1); X.clip(); paperBG(col, k); X.restore();
+  }
+}
+Object.assign(window, { pkBlobPts, pkRub, pkDash, pkPaper, pkPaperTiles, pkKeyed, pkSprKeyed });
+
 // ── loop · 24.25 → 31.42  THE LOOP WHEEL (instrumental) ───────────────────────────────
 // Six stations on a big circle. Camera whips station→station on each beat (lap 1), then on
 // half-beats (lap 2) incl. a branch that tries a route and retracts, then pulls back to reveal the loop.
@@ -45,6 +129,27 @@ function loopCamIndex(t) {
   }
   return idx;
 }
+// the round table: paper-light top rubbed in soft pencil, a soft shade gathered toward the rim, wobbly pencil
+// contour and a dashed pencil guide ring (all static — the engine line crawl is the only movement)
+// hand-drawn circle: a slow lumpy radius (±8 px) plus a little per-point wobble (±5 px) → 10–14 px off true
+const handRing = (R, n, seed) => wobbled(Array.from({ length: n }, (_, i) => {
+  const a = i / n * Math.PI * 2, r = R + Math.sin(a * 2 + seed) * 5 + Math.sin(a * 3 + seed * 1.7) * 4 + Math.sin(a * 5 + seed * .3) * 2.5;
+  return [Math.cos(a) * r, Math.sin(a) * r];
+}), 5, seed);
+const TABLE_Q = (R) => handRing(R, 48, 700);
+function loopTable(R) {
+  const base = '#f9f0db', q = TABLE_Q(R), qi = wobbled(ellPts(0, 0, R * .9, R * .9, 40), 10, 707);
+  X.save(); X.fillStyle = p4Shade(base, .35); curve(q, true); X.fill(); X.restore();
+  p4Fill(() => curve(q, true), base, { wash: .3, grain: .32, tex: 'tex_soft' });
+  X.save(); curve(q, true); X.clip();
+  p4Fill(() => { curve(q, true); X.moveTo(qi[0][0], qi[0][1]); for (let i = qi.length - 1; i >= 0; i--) X.lineTo(qi[i][0], qi[i][1]); X.closePath(); }, '#e7d6b4', { alpha: .55, wash: .25, grain: .45, tex: 'tex_soft' });
+  const qs = wobbled(ellPts(-R * .12, -R * .15, R * 1.02, R * .99, 40), 14, 711);
+  p4Fill(() => { X.beginPath(); X.rect(-R * 2, -R * 2, R * 4, R * 4); X.moveTo(qs[0][0], qs[0][1]); for (let i = qs.length - 1; i >= 0; i--) X.lineTo(qs[i][0], qs[i][1]); X.closePath(); }, '#dfcca8', { alpha: .35, wash: .2, grain: .4, tex: 'tex_soft' });
+  X.restore();
+  p4Line(q, 6 * P4.lineK, P4.line, 3, 750, true);
+  const ring = handRing(WR - 200, 96, 761);
+  pkDash([...ring, ring[0]], 16, 22, 3.4, P4.lineSoft, { alpha: .4, seed: 760, vary: .5 });
+}
 shot('loop', LOOP_T0, (t) => {
   // pull back before the title so the full round table is visible before the sign grows from its centre
   const cl = (tt) => loopArrive(tt, LOOP_PULL, LOOP_PULL - LOOP_PULL_START, .12, .018);
@@ -57,13 +162,14 @@ shot('loop', LOOP_T0, (t) => {
   const spinU = Math.max(0, t - T_CHAIN), spin = spinU <= 0 ? 0 : .34 * (spinU - .35 * (1 - Math.exp(-spinU / .35)));
   const rollS = roll - spin;
   const camX = lerp(camP[0], 0, pull), camY = lerp(camP[1], 0, pull);
-  bgCam(() => paperBG(STATIONS[Math.round(ci) % 6].col, .5 * (1 - pull) + .15), [camX, camY, zoom, rollS], { par: .9, over: 1.85 });
+  const bgCol = STATIONS[Math.round(ci) % 6].col, bgK = .5 * (1 - pull) + .15;
+  bgCam(() => pkPaperTiles(bgCol, bgK), [camX, camY, zoom, rollS], { par: .9, over: 1.85 });
   X.save();
   cam(camX, camY, zoom, rollS);
-  inkShape(ellPts(0, 0, WR + 30, WR + 30, 48), '#f9f0db', 6, 3, 700);
-  X.save(); X.globalAlpha *= .25; X.setLineDash([16, 22]); X.strokeStyle = PAL.ink; X.lineWidth = 4; X.beginPath(); X.arc(0, 0, WR - 200, 0, 7); X.stroke(); X.restore();
+  loopTable(WR + 30);
   // thread grows round the ring station by station
-  const ringFade = 1 - .55 * E.outC(prog(t, T_CHAIN - .16, T_DEBATE + .2));
+  // the stations step back for the title: their cards fade right down, the characters only a little (they must stay solid)
+  const fadeK = E.outC(prog(t, T_CHAIN - .16, T_DEBATE + .2)), ringFade = 1 - .55 * fadeK, sprFade = 1 - .15 * fadeK;
   const ringPts = (from, to) => { const out = []; for (let s = 0; s <= 24; s++) { const an = lerp(stAng(from), stAng(to), s / 24); out.push([Math.cos(an) * (WR - 40), Math.sin(an) * (WR - 40)]); } return out; };
   let path = [];
   for (let j = 1; j < loopSched.length; j++) {
@@ -83,12 +189,15 @@ shot('loop', LOOP_T0, (t) => {
     let hit = null; loopSched.forEach((tj, j) => { if (j % 6 === i && t >= tj) hit = tj; });
     const hitCalm = hit != null && loopIsDouble(hit);
     const hk = hit != null ? kick(t - hit, hitCalm ? 12 : 7) * (hitCalm ? .35 : 1) : 0;
-    X.save(); X.globalAlpha *= ringFade; X.translate(...stPos(i, WR + 20)); X.rotate(an + Math.PI / 2);
-    const s1 = loopSched[i], s2 = loopSched[6 + i];
-    const seq = [[0, 0], [s1 + (loopSched[i + 1] ? (loopSched[i + 1] - s1) / 2 : BEAT / 2), 1], [s2, 0], [beat(beatAt(s2) + .25), 1], [LOOP_PULL, 0], [T_CHAIN, 1], [T_DEBATE, 0], [beat(45.5), 1], [beat(46), 0], [beat(46.5), 1], [beat(47), 0]];
+    X.save(); X.translate(...stPos(i, WR + 20)); X.rotate(an + Math.PI / 2);
+    const v1 = loopSched[i], v2 = loopSched[6 + i];
+    const seq = [[0, 0], [v1 + (loopSched[i + 1] ? (loopSched[i + 1] - v1) / 2 : BEAT / 2), 1], [v2, 0], [beat(beatAt(v2) + .25), 1], [LOOP_PULL, 0], [T_CHAIN, 1], [T_DEBATE, 0], [beat(45.5), 1], [beat(46), 0], [beat(46.5), 1], [beat(47), 0]];
     const b = IMG[st.poseB] ? paPick(t, seq) : 0, sq = paSq(paSince(t, seq), t >= LOOP_DOUBLE_START && t < T_CHAIN + .2 ? .035 : .1);
+    X.save(); X.globalAlpha *= sprFade;
     spr(b ? st.poseB : st.pose, 0, -10 - hk * 40, (b ? st.hB : st.h) * (1 + hk * .08), { shadow: 1, seed: i * 5, sx: sq.sx, sy: sq.sy });
     if (t > LOOP_PULL + .1 && t < T_DEBATE + .9) paStars(0, -(b ? st.hB : st.h) - 40, LOOP_PULL + .1 + i * .03, t);
+    X.restore();
+    X.globalAlpha *= ringFade;                            // cards only from here on
     if (i === 2) {                                        // TEST station: a fan of different investigations, new hand on lap 2
       const fan = t >= loopSched[8] ? ['dna', 'mri', 'slide'] : ['ct', 'flask', 'xray'];
       fan.forEach((g, m) => card(st.h * .45 + 30 + m * 70, -st.h * .42 - (m === 1 ? 30 : 0), { w: 140, h: 180, glyph: g, rot: (m - 1) * .28 + .1, seed: 40 + m + (fan[0] === 'dna' ? 9 : 0), s: 1 + hk * .25 * (m === 1 ? 1 : .6) }));
@@ -265,15 +374,20 @@ shot('breadth', 36.33, (t) => {
 
 // ── lifetime · 38.81 → 41.21  "More than one lifetime could pack in one head." ───────────
 // hyp_lid split in two by a clip polygon (image px): the hair lid rotates about its hinge
-const PA_LID = { W: 931, H: 1430, hinge: [240, 508], shut: 1.0,
-  poly: [[-80, -80], [470, -80], [432, 100], [300, 400], [262, 486], [232, 534], [-80, 536]] };
+// traced on the pencil redraws (hyp_lid, ~1, ~2 share one registration; hinge = the screw). The cut runs down the
+// white wedge between the lid rim and the head's open top, round the screw, then between the lid's lowest curls and
+// the back-of-head curls. `cut` clips the head; `poly` (the lid) is the same line pushed ~5 px (3 px along the curls) into the head side so
+// the two halves overlap and no pale anti-aliased seam shows.
+const PA_LID = { W: 931, H: 1430, hinge: [253, 525], shut: 1.0,
+  cut:  [[-80, -80], [620, -80], [470, 300], [400, 372], [332, 440], [300, 467], [281, 487], [268, 501], [277, 512], [277, 532], [266, 545], [248, 549], [236, 563], [218, 571], [192, 574], [172, 586], [-80, 598]],
+  poly: [[-80, -80], [625, -80], [474, 303], [403, 376], [335, 444], [303, 471], [284, 490], [272, 503], [281, 512], [281, 535], [268, 548], [250, 552], [238, 566], [220, 574], [194, 577], [174, 589], [-80, 601]] };
 function paLidHyp(x, y, h, ang, seed) {
-  const L = PA_LID, k = h / L.H, poly = () => L.poly.forEach((p, i) => i ? X.lineTo(p[0], p[1]) : X.moveTo(p[0], p[1]));
+  const L = PA_LID, k = h / L.H, path = (P) => { X.beginPath(); P.forEach((p, i) => i ? X.lineTo(p[0], p[1]) : X.moveTo(p[0], p[1])); X.closePath(); };
   X.save(); X.translate(x - L.W * k / 2, y - h); X.scale(k, k);
-  X.save(); X.beginPath(); X.rect(-300, -300, L.W + 600, L.H + 600); poly(); X.closePath(); X.clip('evenodd');
+  X.save(); path(L.cut); X.rect(-300, -300, L.W + 600, L.H + 600); X.clip('evenodd');
   spr('hyp_lid', L.W / 2, L.H, L.H, { seed }); X.restore();
   X.save(); X.translate(...L.hinge); X.rotate(ang); X.translate(-L.hinge[0], -L.hinge[1]);
-  X.beginPath(); poly(); X.closePath(); X.clip(); spr('hyp_lid', L.W / 2, L.H, L.H, { seed }); X.restore();
+  path(L.poly); X.clip(); spr('hyp_lid', L.W / 2, L.H, L.H, { seed }); X.restore();
   X.restore();
 }
 shot('lifetime', 38.81, (t) => {
@@ -325,10 +439,12 @@ window.scales = scales;
 // Scales rig from the hand-drawn prop_scales sprite (image px): static pole/base, a beam that tilts about the hub,
 // and two pans that hang plumb from the beam ends. fill(side) draws into a pan (pan-local px; rim centre ≈ (0, 0)).
 const SC_IMG = { W: 2028, H: 1732, piv: [1009, 418], hang: [[391, 482], [1634, 482]], rim: [[393, 1190], [1636, 1190]] };
+// the open triangles between each pan's strings (fractions of the image)
+const SC_HOLES = [[391, 800], [391, 950], [391, 1080], [1634, 800], [1634, 950], [1634, 1080]].map(([x, y]) => [x / 2028, y / 1732]);
 function scalesRig(x, y, h, tilt, fill, o = {}) {
   const k = h / SC_IMG.H, P = SC_IMG.piv;
   const beamR = [280, 340, 1460, 142], panR = [[20, 482, 750, 865], [1260, 482, 750, 865]];
-  const draw = () => spr('scales', SC_IMG.W / 2, SC_IMG.H, SC_IMG.H, { seed: 5 });
+  const draw = () => pkSprKeyed('scales', SC_HOLES, SC_IMG.W / 2, SC_IMG.H, SC_IMG.H, { seed: 5 });
   X.save(); X.translate(x - SC_IMG.W * k / 2, y - h); X.scale(k, k);
   X.save(); X.beginPath(); X.rect(-200, -200, SC_IMG.W + 400, SC_IMG.H + 400); X.rect(...beamR); panR.forEach(r => X.rect(...r)); X.clip('evenodd'); draw(); X.restore();
   X.save(); X.translate(...P); X.rotate(tilt); X.translate(-P[0], -P[1]); X.beginPath(); X.rect(...beamR); X.clip(); draw(); X.restore();
@@ -510,8 +626,9 @@ function dxo(t, times, o = {}) {
     const hb = [1, 1.5, 2].map(k => beat(Math.round(beatAt(times[2]) * 2) / 2 + k)), hj = t > hb[i] ? Math.sin(clamp((t - hb[i]) / .2) * Math.PI) * 40 : 0;
     if (t >= revealT) {
       const hitK = t >= revealT ? kick(t - revealT, 9) : 0;
-      const sp = ellPts(x, 540, 250 + hitK * 30, 240, 18).map((p, j) => [p[0] + (hash(j + i * 20) - .5) * 70, p[1] + (hash(j + 9 + i * 20) - .5) * 70]);
-      X.save(); X.globalAlpha *= clamp((t - revealT) / (1 / 48)); inkShape(sp, cols[i], 0, 2, 500 + i); X.restore();
+      X.save(); X.globalAlpha *= clamp((t - revealT) / (1 / 48));
+      pkRub(x, 540, 262 + hitK * 30, 250, cols[i], { seed: 500 + i * 7, layers: 6, step: .11, amp: .16, wash: .75 });
+      X.restore();
     }
     X.save(); X.translate(0, -hj);
     if (!o.hands || t >= revealT) stamp(l, x, 540, 430, revealT, { col: PAL.ink, rot: (i - 1) * .06 });
@@ -519,7 +636,7 @@ function dxo(t, times, o = {}) {
     if (l === 'O' && o.wink && t > ti + .25) {
       const e = pop(t, ti + .25, 5, .45), look = E.io(prog(t, ti + .45, ti + .6)) - E.io(prog(t, ti + .75, ti + .9)), wk = t > ti + .95 && t < ti + 1.15;
       X.save(); X.translate(x - 10 - look * 14, 520); X.scale(e, e);
-      X.fillStyle = '#fffdf4'; [-34, 34].forEach(ex => { X.beginPath(); X.ellipse(ex, 0, 22, 26, 0, 0, 7); X.fill(); });
+      [-34, 34].forEach((ex, m) => inkShape(ellPts(ex, 0, 22, 26, 12), '#fffdf4', 2.6, .4, 1310 + m));
       if (wk) inkLine([[18, 2], [34, -6], [50, 2]], 7, PAL.ink, .4, 1301); else dot(34 - look * 8, 4, 10);
       dot(-34 - look * 8, 4, 10);
       X.restore();

@@ -5,6 +5,63 @@
 'use strict';
 const L30 = LINES[30].words, L32 = LINES[32].words;
 const STOCKS = [PAL.cream, '#fbe7a1', '#f8d3b8', '#d8ead0', '#d3e2f2', '#e3d6ee', '#f6d0c8'];
+// ── soft coloured-pencil light: layered rubbed shapes with static wobbled edges (no gradients, no additive light) ──
+const sw4 = (pts, seed, amp) => pts.map((p, i) => [p[0] + (hash2(i, seed) - .5) * 2 * amp, p[1] + (hash2(i, seed + 9) - .5) * 2 * amp]);
+const SOFT = (a, wash = .7) => ({ alpha: a, wash, grain: .5, tex: 'tex_soft' });
+// a pool of pale pencil light: n nested ellipses (densest in the middle, lightest toward the edge)
+function softPool(x, y, rx, ry, col, a, seed, n = 4, core = .3) {
+  if (a <= .004) return;
+  const L = n * 2;                                       // many faint layers with lumpy, crossing edges = no visible bands
+  for (let i = 0; i < L; i++) {
+    const k = (1 - i / L * (1 - core)) * (1 + (hash2(i, seed) - .5) * .12), ox = (hash2(i, seed + 3) - .5) * rx * .08, oy = (hash2(i, seed + 4) - .5) * ry * .08;
+    const pts = sw4(ellPts(x + ox, y + oy, rx * k, ry * k, 14), seed + i * 13, Math.min(rx, ry) * k * .1);
+    p4Fill(() => curve(pts, true), col, { alpha: a / L * 1.15, wash: i < L / 3 ? .35 : .6, grain: .8, tex: 'tex_soft' });
+  }
+}
+// pencil dimming round a lit ellipse: n nested holes cut from box [x0,y0,x1,y1], darkest far away (multiply)
+function softShroud(x, y, rx, ry, col, a, seed, box, n = 4, spread = .35) {
+  if (a <= .004) return;
+  X.save(); X.globalCompositeOperation = 'multiply';
+  const L = n * 2, sp = spread / 2;
+  for (let i = 0; i < L; i++) {
+    const k = (1 + i * sp) * (1 + (hash2(i, seed) - .5) * sp * .9), ox = (hash2(i, seed + 3) - .5) * rx * .06, oy = (hash2(i, seed + 4) - .5) * ry * .06;
+    const pts = sw4(ellPts(x + ox, y + oy, rx * k, ry * k, 16), seed + i * 17, Math.min(rx, ry) * k * .09).reverse();
+    p4Fill(() => { curve(pts, true); X.moveTo(box[0], box[1]); X.lineTo(box[2], box[1]); X.lineTo(box[2], box[3]); X.lineTo(box[0], box[3]); X.closePath(); }, col, { alpha: a / L, wash: i < L / 3 ? .45 : .75, grain: .7, tex: 'tex_soft' });
+  }
+  X.restore();
+}
+// sunburst as soft pencil rays: a faint rubbed wedge plus a bundle of long low-alpha pencil strokes per ray
+function pencilRays(cx, cy, r0, r1, n, rot, col, a, seed, lw = 30) {
+  if (a <= .004) return;
+  X.save(); X.translate(cx, cy); X.rotate(rot);
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * Math.PI * 2, a1 = a0 + Math.PI / n, am = (a0 + a1) / 2, N = 7;
+    const wedge = [[Math.cos(am) * r0 * .5, Math.sin(am) * r0 * .5]];
+    for (let j = 0; j <= N; j++) { const aa = lerp(a0, a1, j / N), rr = r1 * (.94 + hash2(i * 9 + j, seed) * .06); wedge.push([Math.cos(aa) * rr, Math.sin(aa) * rr]); }
+    const wq = sw4(wedge, seed + i * 5, 10);
+    p4Fill(() => curve(wq, true), col, SOFT(a * .75, .6));
+    for (let j = 0; j < 3; j++) {
+      const ang = lerp(a0, a1, (j + .5) / 3) + (hash2(i, seed + j) - .5) * .03, ra = r0 * (.7 + hash2(j, seed + i) * .3), rb = r1 * (.8 + hash2(i + j, seed + 3) * .2);
+      const pts = [0, .34, .67, 1].map(u => { const rr = lerp(ra, rb, u); return [Math.cos(ang) * rr, Math.sin(ang) * rr]; });
+      p4Line(pts, lw * (.75 + hash2(i * 3 + j, seed + 7) * .5), col, .6, seed + i * 7 + j, false, { alpha: a * .55, rough: .5 });
+    }
+  }
+  X.restore();
+}
+function pencilDashes(pts, on, off, w, col, seed) {            // dashed outline drawn as short pencil strokes
+  const P = [...pts, pts[0]], c = col === PAL.ink ? P4.line : col === PAL.inkSoft ? P4.lineSoft : col;
+  let d = 0, cur = [], k = 0;
+  for (let i = 1; i < P.length; i++) {
+    const [ax, ay] = P[i - 1], [bx, by] = P[i], L = Math.hypot(bx - ax, by - ay);
+    for (let u = 0; u < L; u += 4) {
+      const p = [ax + (bx - ax) * u / L, ay + (by - ay) * u / L], ph = d % (on + off);
+      if (ph < on) cur.push(p); else if (cur.length) { if (cur.length > 1) p4Line(cur, w, c, .4, seed + k++, false, { rough: .5 }); cur = []; }
+      d += 4;
+    }
+  }
+  if (cur.length > 1) p4Line(cur, w, c, .4, seed + k, false, { rough: .5 });
+}
+const softDisc = (x, y, r, col, a, seed) => { const pts = sw4(ellPts(x, y, r, r, 10), seed, r * .12); p4Fill(() => curve(pts, true), col, { alpha: a, wash: .85, grain: .6, tex: 'tex_soft' }); };
 
 // ── c2kill · 101.557 → 104.357  KILLING PART #2 + "let it COME THROUGH," (a pipe gushing cards at camera) ─────
 const PIPE_H = 330, PIPE_W = PIPE_H * 3683 / 893, PIPE_X = 2240, PIPE_Y = 240;
@@ -59,9 +116,9 @@ function hookPlate(t) {
   shadowBlob((x0 + x1) / 2 + 14, cy + 20, bw * .52, bh * .54, .32);
   inkShape([...top, ...rgt, ...bot.reverse(), ...lft], '#fbf5e6', 5, 1, 761);
   X.restore();
-  slam('let it', xa + w1 / 2, HOOK_L1 + 26, 120, tLet, { font: 'FBo', col: PAL.ink, from: 1.15 });
-  slam('COME', xa + w1 + gap + w2 / 2, HOOK_L1, 190, tCome, { col: PAL.ink, from: 1.35 });
-  slam('THROUGH,', 960, HOOK_L2, 240, tThr, { col: PAL.red, edge: true, from: 1.4 });
+  slam('let it', xa + w1 / 2, HOOK_L1 + 26, 120, tLet, { font: 'FBo', col: PAL.ink, from: 1.15, bake: true });
+  slam('COME', xa + w1 + gap + w2 / 2, HOOK_L1, 190, tCome, { col: PAL.ink, from: 1.35, bake: true });
+  slam('THROUGH,', 960, HOOK_L2, 240, tThr, { col: PAL.red, edge: true, from: 1.4, bake: true });
 }
 shot('c2kill', 101.557, (t) => {
   kp(t, 30, { crowd: true, out: tLet });
@@ -112,19 +169,18 @@ function person(j, x, y, hh, rot, sq = 1) {          // one figure cut out of th
   X.drawImage(c, sx, sy, sw, sh, (-(b - a) / 2 - m / sc) * k, (-m / sc - 952) * k, sw / sc * k, sh / sc * k);
   X.restore();
 }
-function sunburst(cx, cy, r, n, rot, col, a) {
-  X.save(); X.globalAlpha *= a; X.fillStyle = col; X.translate(cx, cy); X.rotate(rot);
-  for (let i = 0; i < n; i++) { const a0 = i / n * Math.PI * 2, a1 = a0 + Math.PI / n; X.beginPath(); X.moveTo(0, 0); X.lineTo(Math.cos(a0) * r, Math.sin(a0) * r); X.lineTo(Math.cos(a1) * r, Math.sin(a1) * r); X.closePath(); X.fill(); }
-  X.restore();
+function sunburst(cx, cy, r, n, rot, col, a, seed = 731) {           // soft pencil rays
+  pencilRays(cx, cy, Math.min(r * .3, 260), r, n, rot, col, a, seed);
 }
 function globeBody(R, scroll) {                       // turning globe: zoomed map scrolls inside a clipped sphere
   shadowBlob(14, R * 1.02, R * .8, R * .1, .18);
   X.save(); X.beginPath(); X.arc(0, 0, R, 0, 7); X.clip();
-  X.fillStyle = '#7cc3c9'; X.fillRect(-R, -R, 2 * R, 2 * R);
+  // ocean: cream paper base, blue rubbed in with pencil in layered wobbled discs (no flat underlay)
+  p4Fill(() => { X.beginPath(); X.arc(0, 0, R + 4, 0, 7); }, '#f6efdc', { wash: 1, grain: .5, tex: 'tex_soft' });
+  pkRub(0, 0, R * 1.08, R * 1.08, '#7cc3c9', { layers: 3, seed: 709, step: .14, amp: .08, wash: .55, grain: .85, alpha: 1.6 });
   spr('globe', scroll, 0, R * 2 * 1.75, { ax: .5, ay: .5, seed: 3 });
-  const g = X.createRadialGradient(-R * .35, -R * .4, R * .1, 0, 0, R * 1.05);
-  g.addColorStop(0, 'rgba(255,250,220,.35)'); g.addColorStop(.55, 'rgba(255,250,220,0)'); g.addColorStop(1, 'rgba(60,30,20,.35)');
-  X.fillStyle = g; X.fillRect(-R, -R, 2 * R, 2 * R);
+  softPool(-R * .35, -R * .4, R * .55, R * .48, '#fff8dc', .38, 705, 3);                       // soft pencil highlight
+  softShroud(R * .06, R * .06, R * .8, R * .8, '#9a7f72', .5, 707, [-R - 20, -R - 20, R + 20, R + 20], 3, .12);   // rubbed shade round the rim
   X.restore();
   inkShape(ellPts(0, 0, R, R, 28), null, 8, 1.4, 701);
 }
@@ -159,10 +215,8 @@ shot('c2world', 106.7, (t) => {
   // the globe rolls in from the right (whip-matched to c2web's exit) and lands with a squash on "world"
   const ent = E.outC(prog(t, 106.64, 106.921)), land = t > 106.921 ? kick(t - 106.921, 9) : 0;
   const rays = E.outC(prog(t, 106.751, 107.224));
-  sunburst(GX, GY, lerp(R * 1.1, 1500, rays), 22, t * .12 - (1 - rays) * .8, PAL.lemon, .38 * rays);
-  X.save(); X.globalCompositeOperation = 'lighter';
-  const sg = X.createRadialGradient(GX, GY, R * .8, GX, GY, R * 2.6); sg.addColorStop(0, `rgba(255,220,150,${.45 * rays})`); sg.addColorStop(1, 'rgba(255,220,150,0)');
-  X.fillStyle = sg; X.fillRect(0, 0, DW, DH); X.restore();
+  sunburst(GX, GY, lerp(R * 1.1, 1500, rays), 22, t * .12 - (1 - rays) * .8, PAL.lemon, .38 * rays, 741);
+  softPool(GX, GY, R * 2.6, R * 2.4, '#fff0c8', .5 * rays, 745, 5, .4);                       // warm pencil glow round the world
   X.save(); X.translate(GX + (1 - ent) * 1150, GY - Math.sin(ent * Math.PI) * 60 + land * 18); X.scale(1 + land * .1, 1 - land * .1); X.rotate(-.12 - (1 - ent) * 1.6);
   if (ent < 1) POST.smear = [-(1 - ent) * 700, 0];
   const spin = (t - 106.7) / 3.03 - (1 - ent) * .6;
@@ -256,13 +310,34 @@ function note(x, y, s, rot, a, seed) {                    // a hand-inked quaver
 }
 function curtains(o) {
   const xr = lerp(990, 70, o);
+  // the drape's inner edge at height y (inset by d): a soft bulge as the curtain is drawn back, static wobble
+  const edge = (y, d = 0) => xr - d - Math.sin(Math.PI * Math.min(1, y / 800)) * 70 * o + Math.sin(y / 140 * 2.1) * 8;
+  const panel = (d, seed) => {
+    const pts = [[-40, -20], [edge(-20, d) + 20, -20]];
+    for (let i = 1; i <= 12; i++) { const y = i / 12 * 1120; pts.push([edge(y, d) + (hash2(i, seed) - .5) * 6, y]); }
+    pts.push([-40, 1120]);
+    return pts;
+  };
   for (const side of [-1, 1]) {
     X.save(); if (side > 0) { X.translate(DW, 0); X.scale(-1, 1); }
-    const pts = [[-40, -20], [xr + 20, -20]];
-    for (let i = 1; i <= 8; i++) { const y = i / 8 * 1120; pts.push([xr - Math.sin(Math.PI * Math.min(1, y / 800)) * 70 * o + Math.sin(i * 2.1) * 8, y]); }
-    pts.push([-40, 1120]);
-    inkShape(pts, PAL.red, 6, 1.5, 820 + side);
-    for (let f = 1; f < 5; f++) { const fx = xr * f / 5; inkLine([[fx, 120], [fx - 10 * o, 500], [fx + 6, 1080]], 4, PAL.redDk, 1.4, 830 + f + side * 10); }
+    // red rubbed in with pencil — a paper-light base, then denser layers set back from the edge (lighter at the edge)
+    const P0 = wobbled(panel(0, 821 + side), 1.5, 820 + side);
+    X.save(); X.fillStyle = p4Shade(PAL.red, .55); curve(P0, true); X.fill(); X.restore();
+    p4Fill(() => curve(P0, true), PAL.red, { alpha: .7, wash: .3, grain: .95, tex: 'tex_soft' });
+    p4Fill(() => curve(wobbled(panel(30, 823 + side), 6, 824 + side), true), PAL.red, { alpha: .55, wash: .4, grain: .85, tex: 'tex_soft' });
+    p4Fill(() => curve(wobbled(panel(90, 825 + side), 10, 826 + side), true), p4Shade(PAL.red, -.04), { alpha: .45, wash: .45, grain: .8, tex: 'tex_soft' });
+    X.save(); curve(P0, true); X.clip();
+    // folds: soft shade bands following the drape, each with a wobbling pencil line in its valley
+    for (let f = 1; f < 5; f++) {
+      const u = f / 5, fx = (y) => edge(y) * u + Math.sin(y / 210 + f * 1.7) * 9 + (hash2(f, 834 + side) - .5) * 30;
+      const ys = Array.from({ length: 9 }, (_, i) => 100 + i / 8 * 1000), bw = 20 + 16 * hash2(f, 836 + side);
+      const band = [...ys.map(y => [fx(y) - bw * (.6 + .4 * y / 1100), y]), ...ys.slice().reverse().map(y => [fx(y) + bw * .5, y])];
+      p4Fill(() => curve(sw4(band, 838 + f + side * 10, 4), true), p4Shade(PAL.red, -.28), SOFT(.32, .45));
+      p4Fill(() => curve(sw4(band.map(([x, y]) => [x + bw * .7, y]), 840 + f + side * 10, 4), true), p4Shade(PAL.red, .35), SOFT(.22, .5));
+      p4Line(ys.map((y, i) => [fx(y) - 4 + (hash2(i, 842 + f + side * 10) - .5) * 5, y]), 3.2, PAL.redDk, 1.2, 830 + f + side * 10, false, { alpha: .6, rough: .9 });
+    }
+    X.restore();
+    p4Line(P0, 6 * P4.lineK, P4.line, 1.5, 870 + side, true);
     X.restore();
   }
   const sc = []; for (let i = 0; i <= 24; i++) { const x = i / 24 * DW; sc.push([x, 70 + (i % 2 ? 46 : 0)]); }
@@ -272,20 +347,34 @@ function curtains(o) {
 function stage(t, o = {}) {
   if (!o.noBg) paperBG('#f5b8a4', .6);
   const sunY = lerp(1180, 800, E.outC(prog(t, 114.7, 122.9)));
-  sunburst(960, sunY, 1600, 20, -t * .08, PAL.lemon, .3 + .12 * (t > tBrass ? kick(t - beat(Math.floor(nbOf(t))), 6) : 0));
-  inkShape(ellPts(960, sunY, 380, 380, 24), '#fbd768', 6, 1.5, 811);
+  sunburst(960, sunY, 1600, 20, -t * .08, PAL.lemon, .3 + .12 * (t > tBrass ? kick(t - beat(Math.floor(nbOf(t))), 6) : 0), 811);
+  // sun: layered wobbled discs rubbed in with pencil — densest in the middle, lighter toward the rim — on a
+  // paper-light base (so the rays stop at the rim), with a soft pencil contour
+  const sun = (k, ox, oy, seed) => sw4(ellPts(960 + ox, sunY + oy, 380 * k, 380 * k, 30), seed, 380 * k * .014);
+  const S0 = sun(1, 0, 0, 811);
+  X.save(); X.fillStyle = '#fdf0c6'; curve(S0, true); X.fill(); X.restore();
+  p4Fill(() => curve(S0, true), '#fbe496', SOFT(.8, .5));
+  for (let i = 0; i < 2; i++) p4Fill(() => curve(sun(.84 - i * .05, -12 - i * 4, -8 - i * 5, 812 + i), true), '#fbd768', SOFT(.42, .6));
+  for (let i = 0; i < 3; i++) p4Fill(() => curve(sun(.64 - i * .08, -24 - i * 5, -20 - i * 6, 815 + i), true), '#f8cb55', SOFT(.26, .55));
+  p4Line(S0, 4, '#c9973f', 1, 819, true, { alpha: .75, rough: .8 });
   const brass = t >= tBrass, nb = nbOf(t), n = Math.floor(nb), kb = kick(t - beat(n), 8);
   // spotlights: one per entrance; once the brass is in, the trio's lights pump on the beat
-  X.save(); X.globalCompositeOperation = 'lighter';
-  BOWS.forEach(([k, x, h, b]) => {
+  // (soft pale pencil beams + floor pools, rubbed in on top of the wash, no additive light)
+  BOWS.forEach(([k, x, h, b], j) => {
     let on = t > beat(b) - .08 ? (.6 + .4 * (1 - kick(t - beat(b) + .08, 12))) : 0;
     if (!on) return;
     if (brass && BRASS[k]) on = .8 + .9 * kb;
-    X.globalAlpha = .16 * on; X.fillStyle = brass && BRASS[k] ? '#fff0a8' : '#fff1c6';
-    X.beginPath(); X.moveTo(x - 60, -10); X.lineTo(x + 60, -10); X.lineTo(x + 220, 1000); X.lineTo(x - 220, 1000); X.closePath(); X.fill();
-    X.beginPath(); X.ellipse(x, 995, 220, 40, 0, 0, 7); X.fill();
+    const col = brass && BRASS[k] ? '#fff6c8' : '#fffbe8';
+    [[1, .5], [.8, .4], [.58, .4]].forEach(([wk, ak], m) => {
+      const pts = [];
+      for (let i = 0; i <= 5; i++) pts.push([x - lerp(60, 220, i / 5) * wk, lerp(-10, 1000, i / 5)]);
+      for (let i = 5; i >= 0; i--) pts.push([x + lerp(60, 220, i / 5) * wk, lerp(-10, 1000, i / 5)]);
+      const q = sw4(pts, 880 + j * 7 + m, 7 * wk);
+      p4Fill(() => curve(q, true), col, SOFT(.62 * on * ak, .8));
+    });
+    [-1, 1].forEach(sd => p4Line([[x + sd * 62, -10], [x + sd * 140, 495], [x + sd * 218, 1000]], 5, col, .6, 895 + j + sd, false, { alpha: .45 * on, rough: .6 }));
+    softPool(x, 995, 230, 42, col, .5 * on, 890 + j, 3, .45);
   });
-  X.restore();
   inkShape([[-30, 985], [DW + 30, 985], [DW + 30, 1110], [-30, 1110]], '#c98d4e', 5, 1.2, 802);
   const bells = [];
   // dancers first (upstage), then the brass trio in front
@@ -319,11 +408,12 @@ function stage(t, o = {}) {
   for (let i = 0; i < 9; i++) inkLine([[i * 230 + 40, 1035], [i * 230 + 60, 1080]], 3, PAL.inkSoft, .8, 860 + i);
   if (brass) {
     // the swap: a paper "POW" puff hides the instruments appearing on the first brass hit
+    // (an opaque pale-pencil puff — no fade, so it never double-exposes; it shrinks away at the end instead)
     const pf = kick(t - tBrass, 6);
     if (pf > .05) BOWS.forEach(([k, x, h], i) => {
       if (!BRASS[k]) return;
-      const R = 90 + 150 * (1 - pf), pts = Array.from({ length: 18 }, (_, j) => { const a = j / 18 * Math.PI * 2 + i, r = R * (j % 2 ? .62 : 1); return [x + Math.cos(a) * r, 1000 - h * .55 + Math.sin(a) * r * .9]; });
-      X.save(); X.globalAlpha *= Math.min(1, pf * 1.6); inkShape(pts, '#fff3b0', 5, 1, 870 + i); X.restore();
+      const R = (90 + 150 * (1 - pf)) * E.outC(clamp((pf - .05) / .4)), pts = Array.from({ length: 18 }, (_, j) => { const a = j / 18 * Math.PI * 2 + i, r = R * (j % 2 ? .62 : 1); return [x + Math.cos(a) * r, 1000 - h * .55 + Math.sin(a) * r * .9]; });
+      inkShape(pts, '#fff4c4', 5, 1, 870 + i);
     });
     // brass flares on every beat (big on the entry, the downbeat 184 and the finale), notes floating off the bells
     bells.forEach(([k, [bx, by, ba]], j) => {
@@ -343,7 +433,10 @@ function stage(t, o = {}) {
     const dt = t - c.t0 + .05, y = c.y0 + c.v * dt; if (y > 1100) return;
     const x = c.x + Math.sin(dt * 3 + c.ph) * 40;
     X.save(); X.translate(x, y); X.rotate(c.ph + dt * 4); X.scale(1, Math.cos(dt * 9 + c.ph));
-    X.fillStyle = c.col; X.fillRect(-c.w / 2, -c.w * .3, c.w, c.w * .6); X.restore();
+    const q = sw4([[-c.w / 2, -c.w * .3], [c.w / 2, -c.w * .3], [c.w / 2, c.w * .3], [-c.w / 2, c.w * .3]], 960 + i, c.w * .06);
+    X.save(); X.globalAlpha *= .85; X.fillStyle = p4Shade(c.col, .3); X.beginPath(); q.forEach(([a, b], m) => m ? X.lineTo(a, b) : X.moveTo(a, b)); X.closePath(); X.fill(); X.restore();
+    p4Fill(() => { X.beginPath(); q.forEach(([a, b], m) => m ? X.lineTo(a, b) : X.moveTo(a, b)); X.closePath(); }, c.col, { wash: .5, grain: .9, tex: 'tex_soft' });
+    X.restore();
   });
   curtains(E.io(prog(t, 114.62, 115.1)));
 }
@@ -460,16 +553,16 @@ function sneezeQuestionFace(t) {
   if (ck > 0) {
     const q = ptrim(TICK.map(([a, b]) => [a * .76, b * .76 + 8]), Math.min(1, ck));
     if (q.length > 1) {
-      X.save(); X.globalAlpha *= .18; X.lineCap = X.lineJoin = 'round'; X.strokeStyle = '#1f4d33'; X.lineWidth = 20; X.beginPath(); q.forEach(([a, b], j) => j ? X.lineTo(a + 2, b + 3) : X.moveTo(a + 2, b + 3)); X.stroke(); X.restore();
+      p4Line(q.map(([a, b]) => [a + 2, b + 3]), 20, '#1f4d33', .4, 1163, false, { alpha: .18, passes: 1 });
       inkLine(q, 15, GREEN, .5, 1164);
     }
   }
   const eyes = appear(t, tSneeze + .22, .12) * vanish(t, tSneeze + 1.5, .45);
   if (eyes > 0) {
-    X.save(); X.globalAlpha *= eyes; X.fillStyle = PAL.ink;
-    [-32, 32].forEach((x, j) => { X.beginPath(); X.ellipse(x, -132 - j * 3, 8, 11, j ? -.1 : .1, 0, Math.PI * 2); X.fill(); });
+    X.save(); X.globalAlpha *= eyes;
+    [-32, 32].forEach((x, j) => inkShape(ellPts(x, -132 - j * 3, 8, 11, 10), P4.line, 0, .3, 1166 + j));
     inkLine([[-48, -154], [-18, -148]], 3, PAL.ink, .2, 1168); inkLine([[18, -149], [48, -156]], 3, PAL.ink, .2, 1169);
-    X.strokeStyle = PAL.ink; X.lineWidth = 3; X.lineCap = 'round'; X.beginPath(); X.ellipse(0, -105, 12, 15, 0, 0, Math.PI * 2); X.stroke();
+    inkLine(ellPts(0, -105, 12, 15, 12), 3, PAL.ink, .3, 1170, true);
     X.restore();
   }
 }
@@ -496,8 +589,9 @@ function heroCard(t) {
   const x = p.x, y = p.y, rot = p.rot + settleAt(QX, QY, t) * .3;
   if (t < tSnap) for (let j = 3; j >= 1; j--) {             // a faint paper trail on the dive
     const q = heroPose(t - j * .035);
-    X.save(); X.globalAlpha *= .13 * (4 - j) / 3; X.translate(q.x, q.y); X.rotate(q.rot); X.scale(q.s, q.s);
-    X.fillStyle = '#e6d2a8'; X.fillRect(-HW / 2, -HH / 2, HW, HH); X.restore();
+    X.save(); X.translate(q.x, q.y); X.rotate(q.rot); X.scale(q.s, q.s);
+    const tr = sw4(rectPts(-HW / 2, -HH / 2, HW, HH, 12, 3), 985 + j, 5);
+    p4Fill(() => curve(tr, true), '#e6d2a8', SOFT(.2 * (4 - j) / 3, .6)); X.restore();
   }
   if (t < tSnap) shadowBlob(x + 60 + p.lift * 160, y + 80 + p.lift * 220, HW * .55 * p.s, HH * .5 * p.s, .12 * (1 - p.lift * .6));
   card(x, y, { lines: false, w: HW, h: HH, s: sc, sx: sq, sy: 1 / sq, flip: p.flip, rot, seed: 990, shadow: 1 + p.lift, stock: '#fffaf0', backCol: '#e6d2a8' });
@@ -508,13 +602,13 @@ function heroCard(t) {
     const tk = E.io(prog(t, tTick, tTick1));
     if (t > tTick1) {                                     // a soft green glow once it's confirmed
       const gk = E.outC(prog(t, tTick1, tTick1 + .4)) * (.5 + .5 * kick(t - tTick1, 3));
-      X.save(); X.globalAlpha *= .35 * gk; const g = X.createRadialGradient(0, -40, 10, 0, -40, 170); g.addColorStop(0, '#bfe8c4'); g.addColorStop(1, 'rgba(191,232,196,0)'); X.fillStyle = g; X.fillRect(-HW / 2, -HH / 2, HW, HH); X.restore();
+      softPool(0, -40, 170, 160, '#bfe8c4', .5 * gk, 993, 3, .4);
     }
     if (tk > 0) {
       const q = ptrim(TICK.map(([a, b]) => [a * 1.2, b * 1.2 + 8]), tk);
       if (q.length > 1) {
         X.save(); X.lineCap = X.lineJoin = 'round';
-        X.globalAlpha *= .25; X.strokeStyle = '#1f4d33'; X.lineWidth = 30; X.beginPath(); q.forEach(([a, b], i) => i ? X.lineTo(a + 3, b + 4) : X.moveTo(a + 3, b + 4)); X.stroke(); X.restore();
+        p4Line(q.map(([a, b]) => [a + 3, b + 4]), 30, '#1f4d33', .4, 994, false, { alpha: .25, passes: 1 }); X.restore();
         inkLine(q, 24, GREEN, .5, 995);
         if (tk < 1) { const [px, py] = q[q.length - 1]; X.save(); X.translate(px, py); X.rotate(.6); inkShape(rectPts(-6, -78, 12, 70, 2, 2), PAL.ink, 2.5, .3, 996); inkShape([[-6, -8], [6, -8], [0, 6]], GREEN, 2, .3, 997); X.restore(); }
       }
@@ -577,10 +671,10 @@ function evCard(i, t) {                                   // one clinical event,
     const wx = -CW / 2 + 22, wy = -CH / 2 + 22, ww = CW - 44, wh = 234;
     inkShape(rectPts(wx, wy, ww, wh, 3, 3), TINT[n.g] || '#eee', 3, .8, 520 + i);
     if (n.g === 'heart') {                                // ECG paper grid behind the trace
-      X.save(); X.globalAlpha *= .35; X.strokeStyle = '#e08a7a'; X.lineWidth = 1.5; X.beginPath();
-      for (let gx = wx + 22; gx < wx + ww - 6; gx += 26) { X.moveTo(gx, wy + 8); X.lineTo(gx, wy + wh - 8); }
-      for (let gy = wy + 20; gy < wy + wh - 6; gy += 26) { X.moveTo(wx + 8, gy); X.lineTo(wx + ww - 8, gy); }
-      X.stroke(); X.restore();
+      X.save(); X.globalAlpha *= .4;
+      for (let gx = wx + 22; gx < wx + ww - 6; gx += 26) p4Line([[gx, wy + 8], [gx, wy + wh / 2], [gx, wy + wh - 8]], 1.8, '#e08a7a', .3, 530 + gx, false, { passes: 1, rough: .4 });
+      for (let gy = wy + 20; gy < wy + wh - 6; gy += 26) p4Line([[wx + 8, gy], [wx + ww / 2, gy], [wx + ww - 8, gy]], 1.8, '#e08a7a', .3, 560 + gy, false, { passes: 1, rough: .4 });
+      X.restore();
     }
     X.save(); X.translate(0, wy + wh / 2); GLYPH[n.g](n.g === 'heart' ? 4.2 : 3.2); X.restore();
   }
@@ -616,8 +710,7 @@ function board(t) {
   if (sa > 0) {
     const focus = diagnosisCue(t);
     X.save(); X.globalAlpha *= sa * (.55 + focus * .35); X.translate(QX, QY); X.rotate(.02);
-    X.setLineDash([22, 16]); X.lineDashOffset = 0; X.strokeStyle = focus > .2 ? PAL.ink : PAL.inkSoft; X.lineWidth = 5 + focus * 3; X.lineCap = 'round';
-    curve(wobbled(rectPts(-HW / 2, -HH / 2, HW, HH, 12, 3), 1.4, 980), true); X.stroke(); X.setLineDash([]);
+    pencilDashes(sw4(rectPts(-HW / 2, -HH / 2, HW, HH, 12, 3), 980, 1.4), 22, 16, 5 + focus * 3, focus > .2 ? PAL.ink : PAL.inkSoft, 980);
     const br = 1 + Math.sin(Math.max(0, t - 127.5) * 3.2) * .05;
     word('?', 0, 70, 220 + focus * 26, { font: 'SH', col: focus > .2 ? PAL.ink : PAL.inkSoft, ax: .5, s: br, seed: 981, bake: true });
     X.restore();
@@ -649,75 +742,29 @@ function diagnosisCue(t) {
 function diagnosisLightsDown(t) {
   return E.ioS(prog(t, 129.5, tSnap)) * (1 - E.ioS(prog(t, 132.55, 133.35)));
 }
+// the cue / lights-down / spotlight are soft coloured pencil laid on the board (world space): warm brown pencil
+// rubbed in round the edges to dim (multiply), pale yellow pencil pools for the light — no gradients, no additive light
+const BOARD_BOX = [-800, -800, BDW + 800, BHt + 800];
 function diagnosisFocus(t) {
   const cue = diagnosisCue(t), house = diagnosisLightsDown(t), focus = Math.max(cue, house);
   if (focus <= 0) return;
   const cx = QX - 265, cy = QY - 150, hx = QX - 185, hy = QY - 40, cueOnly = cue * (1 - house);
-  X.save();
-  X.globalCompositeOperation = 'multiply';
-  X.globalAlpha *= cueOnly * .42;
-  let g = X.createRadialGradient(cx, cy, 420, cx, cy, 2520);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(.18, '#ffffff');
-  g.addColorStop(.44, '#c3a078');
-  g.addColorStop(.72, '#72503c');
-  g.addColorStop(1, '#3d2a22');
-  X.fillStyle = g; X.fillRect(-800, -800, BDW + 1600, BHt + 1600);
-  X.restore();
-  X.save();
-  X.globalCompositeOperation = 'screen';
-  X.globalAlpha *= cueOnly * .72 * (1 + .08 * Math.sin((t - 128) * 3.2));
-  X.translate(hx, hy); X.scale(1.34, .88); X.translate(-hx, -hy);
-  g = X.createRadialGradient(hx, hy, 50, hx, hy, 1020);
-  g.addColorStop(0, 'rgba(255,226,160,.9)');
-  g.addColorStop(.34, 'rgba(255,226,160,.52)');
-  g.addColorStop(.72, 'rgba(255,205,110,.17)');
-  g.addColorStop(1, 'rgba(255,190,80,0)');
-  X.fillStyle = g; X.fillRect(hx - 1180, hy - 980, 2360, 1960);
-  X.restore();
-  X.save();
-  X.globalCompositeOperation = 'lighter';
-  X.globalAlpha *= cueOnly * .24;
-  g = X.createRadialGradient(QX - 90, QY - 65, 20, QX - 90, QY - 65, 560);
-  g.addColorStop(0, 'rgba(255,246,200,.78)');
-  g.addColorStop(1, 'rgba(255,226,160,0)');
-  X.fillStyle = g; X.fillRect(QX - 680, QY - 650, 1220, 1180);
-  X.restore();
+  softShroud(cx, cy, 760, 600, '#8a6450', cueOnly * .62, 1201, BOARD_BOX, 5, .42);
+  const br = 1 + .08 * Math.sin((t - 128) * 3.2);
+  softPool(hx, hy, 1020 * 1.34 * .8, 1020 * .88 * .8, '#ffe6b0', cueOnly * .38 * br, 1211, 5, .3);
+  softPool(QX - 90, QY - 65, 520, 500, '#fff4cc', cueOnly * .3, 1221, 3, .35);
 }
 function diagnosisHouseMask(t) {
   const house = diagnosisLightsDown(t);
   if (house <= 0) return;
-  const hx = QX - 170, hy = QY - 20;
-  X.save();
-  X.globalCompositeOperation = 'multiply';
-  X.globalAlpha *= house * .5;
-  X.translate(hx, hy); X.scale(1.24, .82); X.translate(-hx, -hy);
-  const g = X.createRadialGradient(hx, hy, 0, hx, hy, 760);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(.8, '#ffffff');
-  g.addColorStop(.9, '#777777');
-  g.addColorStop(1, '#000000');
-  X.fillStyle = g; X.fillRect(hx - 1220, hy - 980, 2440, 1960);
-  X.restore();
+  softShroud(QX - 170, QY - 20, 760 * 1.24 * .82, 760 * .82 * .82, '#4a3226', house * .9, 1231, BOARD_BOX, 4, .07);
 }
 function diagnosisSpot(t) {
   const house = diagnosisLightsDown(t), warm = E.ioS(prog(t, 128.0, tSnap - .08)) * (1 - house * .9) * (1 - .28 * E.ioS(prog(t, 134.2, 136.0)));
   if (warm <= 0) { diagnosisHouseMask(t); return; }
   const pulse = .88 + .12 * Math.sin((t - 128) * 3.4);
-  X.save();
-  X.globalCompositeOperation = 'screen';
-  X.globalAlpha *= warm * pulse;
-  let g = X.createRadialGradient(QX - 130, QY - 170, 40, QX - 130, QY - 170, 1120);
-  g.addColorStop(0, 'rgba(255,236,170,.72)');
-  g.addColorStop(.36, 'rgba(255,203,105,.32)');
-  g.addColorStop(1, 'rgba(255,190,80,0)');
-  X.fillStyle = g; X.fillRect(QX - 1500, QY - 1300, 2200, 1900);
-  X.globalAlpha *= .45;
-  g = X.createRadialGradient(QX + 30, QY + 20, 20, QX + 30, QY + 20, 560);
-  g.addColorStop(0, 'rgba(255,244,190,.82)');
-  g.addColorStop(1, 'rgba(255,215,120,0)');
-  X.fillStyle = g; X.fillRect(QX - 650, QY - 650, 1300, 1300);
-  X.restore();
+  softPool(QX - 130, QY - 170, 1050, 1000, '#ffe3a6', warm * pulse * .45, 1241, 5, .25);
+  softPool(QX + 30, QY + 20, 540, 520, '#fff2c4', warm * pulse * .3, 1251, 3, .35);
   diagnosisHouseMask(t);
 }
 // ── D·X·O letter characters conga along the diagnostic thread, then perch on the answer card ───────
@@ -837,8 +884,8 @@ shot('c2board', tWhip, (t) => {
     if (t > t1) [[TX - 560, TY - 285], [TX + 560, TY - 295]].forEach(([x, y]) => tack(x, y, 1, { pressed: E.outBack(prog(t, t1, t1 + .07)) }));
     row([['ONE', t1], ['MORE', t2]], TX, TY - 130, 190, { from: 1.8, maxW: 1060 });
     slam('CLUE', TX, TY + 95, 270, t3, { col: PAL.red, edge: true, from: 2.4 });
-    word('inspired by \u201cSequential diagnosis in medicine using language models\u201d', TX, TY + 205, 34, { font: 'SHm', col: PAL.ink, ax: .5, alpha: appear(t, t4, .4) });
-    word('Science, 22 October 2026', TX, TY + 262, 32, { font: 'FBo', col: PAL.inkSoft, ax: .5, alpha: appear(t, t5, .4) });
+    word('inspired by \u201cSequential diagnosis in medicine using language models\u201d', TX, TY + 205, 34, { font: 'SHm', col: '#1d130c', edge: true, ax: .5, alpha: appear(t, t4, .4) });
+    word('Science, 22 October 2026', TX, TY + 262, 32, { font: 'FBo', col: '#1d130c', edge: true, ax: .5, alpha: appear(t, t5, .4) });
   }
   // the film ends holding on the finished board: title, credit and the confirmed diagnosis all stay in view
   POST.vign = .62;

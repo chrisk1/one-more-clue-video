@@ -8,11 +8,18 @@
 
   // plate drawn as a world-space rectangle (so cam() can move over it)
   const worldPlate = (name, w, h, a = 1) => { const im = IMG[name]; if (!im) return; X.save(); X.globalAlpha *= a; X.drawImage(im, 0, 0, w, h); X.restore(); };
-  const glow = (x, y, r, col, a) => {
-    if (a <= 0) return;
-    X.save(); X.globalCompositeOperation = 'lighter'; X.globalAlpha *= a;
-    const g = X.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
-    X.fillStyle = g; X.fillRect(x - r, y - r, r * 2, r * 2); X.restore();
+  // Light = soft rubbed pencil: three wobble-edged pale discs, denser toward the centre (no gradients, no 'lighter').
+  const glow = (x, y, r, col, a, seed) => {
+    if (a <= 0 || r <= 0) return;
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(col);
+    const hex = m ? '#' + [m[1], m[2], m[3]].map(v => (+v).toString(16).padStart(2, '0')).join('') : col, ca = m && m[4] != null ? +m[4] : 1;
+    const sd = seed ?? Math.round(x * 3.1 + y * 1.7);
+    X.save(); X.globalAlpha *= Math.min(1, a * ca * 1.5);
+    (r > 150 ? [[1, .06], [.8, .09], [.62, .12], [.46, .16], [.3, .22]] : [[1, .09], [.64, .2], [.36, .38]]).forEach(([k, al], i) => {
+      const pts = wobbled(ellPts(x, y, r * k, r * k * .92, r > 60 ? 22 : 12), r * k * .1, sd + i * 13);
+      p4Fill(() => curve(pts, true), p4Shade(hex, Math.min(.6, i * .15)), { alpha: al, wash: .6, grain: .8, tex: 'tex_soft' });
+    });
+    X.restore();
   };
 
   // ── bridge_track · 90.38 → 93.47  "Still trials to run, still work to get right," ───────────────
@@ -78,11 +85,11 @@
     X.save(); X.scale(1, 1 - Math.abs(flutter) * .12);
     X.save(); X.globalAlpha *= .2; inkShape(rectPts(-W / 2 + 9, 9, W, H, 6, 3), PAL.ink, 0, 1, seed + 50); X.restore();
     inkShape(rectPts(-W / 2, 0, W, H, 6, 3), '#fbf5e4', 3, .9, seed);
-    X.save(); X.globalAlpha *= .35; X.strokeStyle = '#9fb7c9'; X.lineWidth = 1.5;
-    for (let i = 0; i < 4; i++) { const yy = 62 + i * 18; X.beginPath(); X.moveTo(-W / 2 + 10, yy); X.lineTo(W / 2 - 10, yy); X.stroke(); }
+    X.save(); X.globalAlpha *= .4;
+    for (let i = 0; i < 4; i++) { const yy = 62 + i * 18; p4Line([[-W / 2 + 10, yy], [0, yy + .6], [W / 2 - 10, yy]], 1.6, '#8fa9c0', .3, seed + 20 + i, false, { passes: 1 }); }
     X.restore();
     const lw = measure(label, ls, 'BR'), lk = Math.min(1, (W - 22) / lw);
-    word(label, 0, 46, ls * lk, { font: 'BR', col: PAL.ink, ax: .5, seed, bake: true });
+    word(label, 0, 46, ls * lk, { font: 'BR', col: '#1d130c', edge: true, ax: .5, seed, bake: true });   // darker, a touch heavier
     X.save(); X.translate(0, 96); X.scale(.95, .95); ICON[label](flutter * 2.2 + Math.sin(T * 2.3 + seed) * .03); X.restore();
     X.restore();
     if (pinned) tack(0, 12, .75, { col: PAL.red });
@@ -100,7 +107,7 @@
     inkShape(rectPts(x + w / 2 - 18 * s, base - h, 16 * s, h - 10 * s, 3, 3), post, 3, .6, seed + 3);
     inkShape(rectPts(x - w / 2 - 12 * s, base - h - 6 * s, w + 24 * s, 30 * s, 5, 4), bar, 3.2, .7, seed + 4);
     const f = flap(T, hx, xs) * .14, pinned = seed % 20 === 0;
-    sheet(label, x, base - h - 2 * s, s * 1.04, (hash(seed) - .5) * .07 + f + wob(T, seed, .006), seed + 3000, s < 1 ? 46 : 40, pinned, f);
+    sheet(label, x, base - h - 2 * s, s * 1.04, (hash(seed) - .5) * .07 + f, seed + 3000, s < 1 ? 46 : 40, pinned, f);
   }
   function hopOf(t, x, hs, H) {
     let y = 0, r = 0, sq = 1, land = -1;
@@ -129,8 +136,15 @@
     bgCam(() => {
       plate('track_dusk', { z: 1.1, cx: .5 + .03 - s * .00002 });
       // a few pale stars boil in the dusk sky
-      for (let i = 0; i < 14; i++) { const sx = hash(i * 3.1) * 1920, sy = 30 + hash(i * 7.7) * 230, tw = .5 + .5 * Math.sin(t * 3 + i); X.save(); X.globalAlpha *= .5 * tw; dot(sx + wob(t, i, 1), sy, 2.4); X.restore(); }
-      X.save(); X.globalCompositeOperation = 'multiply'; X.globalAlpha = .18; X.fillStyle = PAL.dusk; X.fillRect(-100, -100, 2200, 1300); X.restore();
+      for (let i = 0; i < 14; i++) {                    // pale pencil stars, twinkling gently
+        const sx = hash(i * 3.1) * 1920, sy = 30 + hash(i * 7.7) * 230, tw = .5 + .5 * Math.sin(t * 3 + i), r = 4 + hash(i * 5.3) * 3;
+        X.save(); X.globalAlpha *= .55 * tw;
+        p4Line([[sx - r, sy], [sx + r, sy]], 2.2, '#fff3cf', .2, 1400 + i, false, { passes: 1 }); p4Line([[sx, sy - r], [sx, sy + r]], 2.2, '#fff3cf', .2, 1420 + i, false, { passes: 1 });
+        X.restore();
+      }
+      X.save(); X.globalCompositeOperation = 'multiply';
+      p4Fill(() => { X.beginPath(); X.rect(-100, -100, 2200, 1300); }, PAL.dusk, { alpha: .18, wash: .75, grain: .5, tex: 'tex_soft' });
+      X.restore();
     }, [960, cy, cz, 0], { par: 1, over: 1.08 });
     X.save(); cam(960, cy, cz);
     HB.forEach((hx, i) => { const x = hx - s; if (x > -200 && x < 2200) hurdle(x, BASE_B, 218, 118, .78, 640 + i * 10, SH_B[i], hx, BACK.map(b => b[1])); });
@@ -180,16 +194,20 @@
     const [x0, y0, x1, y1, arch] = w, ww = x1 - x0, hh = y1 - y0, cx = (x0 + x1) / 2;
     const pts = arch ? [[x0, y1], [x0, y0 + ww * .55], [x0 + ww * .15, y0 + ww * .15], [cx, y0], [x1 - ww * .15, y0 + ww * .15], [x1, y0 + ww * .55], [x1, y1]]
       : [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
-    X.save(); X.globalCompositeOperation = 'screen'; X.globalAlpha *= k; X.fillStyle = '#ffc45e';
-    X.beginPath(); pts.forEach((p, j) => j ? X.lineTo(p[0], p[1]) : X.moveTo(p[0], p[1])); X.closePath(); X.fill();
-    X.globalAlpha *= .55; X.fillStyle = '#fff1c4'; X.fillRect(x0 + ww * .2, y0 + hh * .25, ww * .6, hh * .5); X.restore();
+    // pane: warm lemon/amber pencil rubbed in, a little heavier at the bottom, pale where the lamp is
+    const amp = Math.min(1.4, ww * .04);
+    X.save(); X.globalAlpha *= Math.min(1, k);
+    inkShape(pts, '#f6b24c', 0, amp, 1300 + i);
+    const ip = wobbled(ellPts(cx, y0 + hh * .48, ww * .32, hh * .3, 12), Math.min(2, ww * .05), 1350 + i);
+    p4Fill(() => curve(ip, true), '#fff0c0', { alpha: .8, wash: .7, grain: .6, tex: 'tex_soft' });
+    X.restore();
     if (ww > 20) {
       X.save(); X.globalAlpha *= .75 * k;
       inkLine([[cx, y0 + (arch ? ww * .2 : 2)], [cx, y1 - 2]], Math.max(2, ww * .07), '#3a2a1c', .3, 700 + i);
       inkLine([[x0 + 2, (y0 + y1) / 2 + hh * .08], [x1 - 2, (y0 + y1) / 2 + hh * .08]], Math.max(2, ww * .07), '#3a2a1c', .3, 720 + i);
       X.restore();
     }
-    glow(cx, (y0 + y1) / 2, Math.max(ww, hh) * 1.2 + 30, 'rgba(255,190,90,.55)', k * (.7 + .15 * Math.sin(T * 5 + i)));
+    glow(cx, (y0 + y1) / 2, Math.max(ww, hh) * .85 + 20, 'rgba(255,196,104,.5)', Math.min(1, k) * (.75 + .12 * Math.sin(T * 5 + i)), 1500 + i * 3);
   }
   function windowPath(w) {
     const [x0, y0, x1, y1, arch] = w, ww = x1 - x0, cx = (x0 + x1) / 2;
@@ -236,7 +254,7 @@
     inkShape([[bx - 18, by - 35], [bx + 18, by - 35], [bx + 13, by - 58], [bx - 13, by - 58]], awake ? PAL.lemon : '#5d4634', 2.4, .35, 1644);
     inkShape(ellPts(bx, by - 61, 6, 4, 8), awake ? PAL.lemon : '#5d4634', 1.6, .25, 1645);
     if (awake > .1) {
-      glow(bx, by - 46, 62, 'rgba(255,220,120,.75)', (.38 + blink * .62) * awake);
+      glow(bx, by - 46, 62, 'rgba(255,220,120,.75)', (.38 + blink * .62) * awake, 1647);
       const sm = .5 + blink * .5;
       [-1, 1].forEach(sd => dot(bx + sd * 7, by - 48, 2.2 * sm));
       inkLine([[bx - 8, by - 40], [bx, by - 37 - blink * 2], [bx + 8, by - 40]], 2, SIL, .18, 1646);
@@ -255,7 +273,7 @@
     X.save(); cam(cx, cy, z);
     // warmth rises as the town lights up
     const warm = E.outC(prog(t, w27(4), w27(5) + .3));
-    X.save(); X.globalCompositeOperation = 'soft-light'; X.globalAlpha = .35 * warm; X.fillStyle = PAL.peach; X.fillRect(0, 0, 1920, 1080); X.restore();
+    if (warm > 0) { X.save(); X.globalCompositeOperation = 'soft-light'; p4Fill(() => { X.beginPath(); X.rect(0, 0, 1920, 1080); }, PAL.peach, { alpha: .35 * warm, wash: .8, grain: .45, tex: 'tex_soft' }); X.restore(); }
     WINS.forEach((w, i) => { const k = E.outC(prog(t, WIN_T[i], WIN_T[i] + .14)); if (k > 0) litWindow(w, k * (1 + kick(t - WIN_T[i], 10) * .25), i); });
     WINDOW_SCENES.forEach(([i, name, sd, h, dx, dy, clip, sx]) => {
       const k = E.outC(prog(t, WIN_T[i] + .04, WIN_T[i] + .22)) * (1 + kick(t - WIN_T[i], 10) * .12);
@@ -266,7 +284,7 @@
     for (let i = 0; i < 22; i++) {
       const tx = 980 + hash(i * 9.1) * 860, ty = 445 + hash(i * 4.3) * 95, ti = w27(4) + .1 + hash(i * 2.2) * .4;
       const k = appear(t, ti, .1); if (k <= 0) continue;
-      X.save(); X.globalAlpha *= k; X.fillStyle = '#ffd27a'; X.fillRect(tx, ty, 5, 7); X.restore(); glow(tx + 2, ty + 3, 16, 'rgba(255,200,110,.6)', k);
+      X.save(); X.globalAlpha *= k; inkShape(rectPts(tx, ty, 5, 7, 1, 1), '#f7c25c', 0, .4, 1560 + i); X.restore(); glow(tx + 2, ty + 3, 16, 'rgba(255,200,110,.6)', k, 1580 + i * 3);
     }
     thread(ROOF, { k: roofK(t), w: 9, tip: true });
     X.restore();
@@ -275,11 +293,11 @@
     shadowBlob(880, 306, 350, 92, .22);
     const bedT = w27(5), bedCx = wordCenter([4, 5], 880, 128, 5);
     const bedBloom = appear(t, bedT - .1, .18) * vanish(t, bedT + .5, .55);
-    if (bedBloom > 0) glow(bedCx, 308, 225, 'rgba(255,225,120,.38)', bedBloom);
+    if (bedBloom > 0) glow(bedCx, 308, 200, 'rgba(255,225,120,.3)', bedBloom, 1650);
     handWords([0, 1, 2, 3], 900, 210, 98, '#fff4ce');
     const eb = pop(t, w27(5), 3, .45);
     handWords([4, 5], 880, 350, 128, '#ffe97d');
-    if (t > w27(5)) glow(bedCx, 304, 230, 'rgba(255,205,95,.28)', eb * .75);
+    if (t > w27(5)) glow(bedCx, 304, 200, 'rgba(255,205,95,.22)', eb * .75, 1655);
     X.restore();
     if (inn > .2) POST.smear = [0, (inn - .2) * 380];
     if (outW > .02) POST.smear = [outW * 700, 0];
@@ -304,8 +322,8 @@
     const cx = lerp(960, SUN[0], push) - inn * 190, cy = lerp(540, SUN[1] + 20, push);
     bgCam(() => { worldPlate('track_dusk', 1920, 1080); worldPlate('track_dawn', 1920, 1080, dawn); }, [cx, cy, z, 0], { par: 1, over: 1 });
     X.save(); cam(cx, cy, z);
-    X.save(); X.globalCompositeOperation = 'multiply'; X.globalAlpha = .35 * (1 - dawn); X.fillStyle = PAL.night; X.fillRect(0, 0, 1920, 1080); X.restore();
-    glow(SUN[0], SUN[1], 260 + 240 * push, 'rgba(255,214,140,.9)', dawn * (.45 + .5 * push) + kick(t - w28(9), 5) * .3);
+    if (dawn < 1) { X.save(); X.globalCompositeOperation = 'multiply'; p4Fill(() => { X.beginPath(); X.rect(0, 0, 1920, 1080); }, PAL.night, { alpha: .35 * (1 - dawn), wash: .75, grain: .5, tex: 'tex_soft' }); X.restore(); }
+    glow(SUN[0], SUN[1], 260 + 240 * push, 'rgba(255,214,140,.9)', dawn * (.45 + .5 * push) + kick(t - w28(9), 5) * .3, 1660);
     // the route ahead: thread runs from the start line to the sun
     const rk = E.outC(prog(t, w28(5) - .1, w28(9)));
     if (rk > 0) {

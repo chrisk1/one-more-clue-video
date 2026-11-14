@@ -6,6 +6,58 @@
 'use strict';
 const L31 = LINES[31].words.map(w => w[1]), L33 = LINES[33].words.map(w => w[1]);
 const TESTS = ['xray', 'tube', 'dna', 'slide', 'flask', 'mri', 'ct', 'heart', 'steth', 'drop', 'thermo', 'pill'];
+// ── soft coloured-pencil light: layered rubbed shapes with static wobbled edges (no gradients, no additive light) ──
+const sw4 = (pts, seed, amp) => pts.map((p, i) => [p[0] + (hash2(i, seed) - .5) * 2 * amp, p[1] + (hash2(i, seed + 9) - .5) * 2 * amp]);
+const SOFT = (a, wash = .7) => ({ alpha: a, wash, grain: .5, tex: 'tex_soft' });
+// a pool of pale pencil light: n nested ellipses (densest in the middle, lightest toward the edge)
+function softPool(x, y, rx, ry, col, a, seed, n = 4, core = .3) {
+  if (a <= .004) return;
+  const L = n * 2;                                       // many faint layers with lumpy, crossing edges = no visible bands
+  for (let i = 0; i < L; i++) {
+    const k = (1 - i / L * (1 - core)) * (1 + (hash2(i, seed) - .5) * .12), ox = (hash2(i, seed + 3) - .5) * rx * .08, oy = (hash2(i, seed + 4) - .5) * ry * .08;
+    const pts = sw4(ellPts(x + ox, y + oy, rx * k, ry * k, 14), seed + i * 13, Math.min(rx, ry) * k * .1);
+    p4Fill(() => curve(pts, true), col, { alpha: a / L * 1.15, wash: i < L / 3 ? .35 : .6, grain: .8, tex: 'tex_soft' });
+  }
+}
+// pencil dimming round a lit ellipse: n nested holes cut from box [x0,y0,x1,y1], darkest far away (multiply)
+function softShroud(x, y, rx, ry, col, a, seed, box, n = 4, spread = .35) {
+  if (a <= .004) return;
+  X.save(); X.globalCompositeOperation = 'multiply';
+  const L = n * 2, sp = spread / 2;
+  for (let i = 0; i < L; i++) {
+    const k = (1 + i * sp) * (1 + (hash2(i, seed) - .5) * sp * .9), ox = (hash2(i, seed + 3) - .5) * rx * .06, oy = (hash2(i, seed + 4) - .5) * ry * .06;
+    const pts = sw4(ellPts(x + ox, y + oy, rx * k, ry * k, 16), seed + i * 17, Math.min(rx, ry) * k * .09).reverse();
+    p4Fill(() => { curve(pts, true); X.moveTo(box[0], box[1]); X.lineTo(box[2], box[1]); X.lineTo(box[2], box[3]); X.lineTo(box[0], box[3]); X.closePath(); }, col, { alpha: a / L, wash: i < L / 3 ? .45 : .75, grain: .7, tex: 'tex_soft' });
+  }
+  X.restore();
+}
+// sunburst as soft pencil rays: a faint rubbed wedge plus a bundle of long low-alpha pencil strokes per ray
+function pencilRays(cx, cy, r0, r1, n, rot, col, a, seed, lw = 30) {
+  if (a <= .004) return;
+  X.save(); X.translate(cx, cy); X.rotate(rot);
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * Math.PI * 2, a1 = a0 + Math.PI / n, am = (a0 + a1) / 2, N = 7;
+    const wedge = [[Math.cos(am) * r0 * .5, Math.sin(am) * r0 * .5]];
+    for (let j = 0; j <= N; j++) { const aa = lerp(a0, a1, j / N), rr = r1 * (.94 + hash2(i * 9 + j, seed) * .06); wedge.push([Math.cos(aa) * rr, Math.sin(aa) * rr]); }
+    const wq = sw4(wedge, seed + i * 5, 10);
+    p4Fill(() => curve(wq, true), col, SOFT(a * .75, .6));
+    for (let j = 0; j < 3; j++) {
+      const ang = lerp(a0, a1, (j + .5) / 3) + (hash2(i, seed + j) - .5) * .03, ra = r0 * (.7 + hash2(j, seed + i) * .3), rb = r1 * (.8 + hash2(i + j, seed + 3) * .2);
+      const pts = [0, .34, .67, 1].map(u => { const rr = lerp(ra, rb, u); return [Math.cos(ang) * rr, Math.sin(ang) * rr]; });
+      p4Line(pts, lw * (.75 + hash2(i * 3 + j, seed + 7) * .5), col, .6, seed + i * 7 + j, false, { alpha: a * .55, rough: .5 });
+    }
+  }
+  X.restore();
+}
+const softDisc = (x, y, r, col, a, seed) => { const pts = sw4(ellPts(x, y, r, r, 10), seed, r * .12); p4Fill(() => curve(pts, true), col, { alpha: a, wash: .85, grain: .6, tex: 'tex_soft' }); };
+// tiny pencil sparkle: two crossed soft strokes
+function sparkle(x, y, sz, rot, col, a, seed) {
+  if (a <= .01 || sz < 1) return;
+  X.save(); X.translate(x, y); X.rotate(rot);
+  p4Line([[-sz, 0], [0, 0], [sz, 0]], Math.max(1.5, sz * .28), col, .3, seed, false, { alpha: a, rough: .4 });
+  p4Line([[0, -sz], [0, 0], [0, sz]], Math.max(1.5, sz * .28), col, .3, seed + 1, false, { alpha: a, rough: .4 });
+  X.restore();
+}
 
 // ── c2web ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 const C = [960, 470];
@@ -68,11 +120,13 @@ function chalLens(t, pp) {
   const hand = [x - (.74 - .5) * w, CH_FEET - .48 * h];
   inkLine([[cx + r * .7, cy + r * .7], hand], 16, PAL.ink, .6, 3301);
   X.save(); X.beginPath(); X.arc(cx, cy, r, 0, 7); X.clip();
-  X.fillStyle = '#fbf3df'; X.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  X.fillStyle = p4Shade('#fbf3df', .4); X.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  p4Fill(() => { X.beginPath(); X.rect(cx - r, cy - r, 2 * r, 2 * r); }, '#fbf3df', SOFT(1, .6));
   const Z = 2.2; X.translate(cx, cy); X.scale(Z, Z); X.translate(-FACE[0], -FACE[1]);
   sprK(pp.name, C[0], C[1] + 330, PK, { seed: 6, boil: false });
   X.restore();
-  X.save(); X.globalAlpha *= .25; X.fillStyle = '#bfe1ee'; X.beginPath(); X.arc(cx, cy, r, 0, 7); X.fill(); X.restore();
+  X.save(); X.beginPath(); X.arc(cx, cy, r, 0, 7); X.clip();
+  softPool(cx - r * .15, cy - r * .15, r * 1.15, r * 1.15, '#bfe1ee', .32, 3305, 3, .5); X.restore();
   inkLine([[cx - r * .55, cy - r * .2], [cx - r * .25, cy - r * .55]], 10, '#ffffff', .4, 3302);
   inkShape(ellPts(cx, cy, r, r, 26), null, 14, .8, 3303);
   inkShape(ellPts(cx, cy, r + 9, r + 9, 26), null, 5, .8, 3304, PAL.brassDk);
@@ -87,7 +141,7 @@ shot('c2web', 104.357, (t) => {
   if (whip > 0) POST.smear = [-whip * 800, 0];
   X.save(); cam(cx, cy, z, cr);
   // soft halo behind the patient
-  X.save(); const g = X.createRadialGradient(C[0], C[1] + 80, 40, C[0], C[1] + 80, 520); g.addColorStop(0, 'rgba(255,248,225,.9)'); g.addColorStop(1, 'rgba(255,248,225,0)'); X.fillStyle = g; X.fillRect(C[0] - 600, C[1] - 520, 1200, 1200); X.restore();
+  softPool(C[0], C[1] + 80, 520, 500, '#fff8e1', .8, 3001, 4, .25);
   // threads first (under cards)
   NODES.forEach(n => {
     const k = E.outC(prog(t, n.t0 - .18, n.t0));
@@ -146,11 +200,12 @@ shot('c2web', 104.357, (t) => {
 const G = [960, 590], GR = 330;
 function globeSpin(R, scroll) {
   X.save(); X.beginPath(); X.arc(0, 0, R, 0, 7); X.clip();
-  X.fillStyle = '#7cc3c9'; X.fillRect(-R, -R, 2 * R, 2 * R);
+  // ocean: cream paper base, blue rubbed in with pencil in layered wobbled discs (no flat underlay)
+  p4Fill(() => { X.beginPath(); X.arc(0, 0, R + 4, 0, 7); }, '#f6efdc', { wash: 1, grain: .5, tex: 'tex_soft' });
+  pkRub(0, 0, R * 1.08, R * 1.08, '#7cc3c9', { layers: 3, seed: 3409, step: .14, amp: .08, wash: .55, grain: .85, alpha: 1.6 });
   spr('globe', scroll, 0, R * 2 * 1.75, { ax: .5, ay: .5, seed: 3 });
-  const g = X.createRadialGradient(-R * .35, -R * .4, R * .1, 0, 0, R * 1.05);
-  g.addColorStop(0, 'rgba(255,250,220,.3)'); g.addColorStop(.55, 'rgba(255,250,220,0)'); g.addColorStop(1, 'rgba(30,20,40,.4)');
-  X.fillStyle = g; X.fillRect(-R, -R, 2 * R, 2 * R);
+  softPool(-R * .35, -R * .4, R * .55, R * .48, '#fff8dc', .32, 3405, 3);
+  softShroud(R * .06, R * .06, R * .8, R * .8, '#7d7488', .55, 3407, [-R - 20, -R - 20, R + 20, R + 20], 3, .12);
   X.restore();
   inkShape(ellPts(0, 0, R, R, 28), null, 8, 1.4, 701);
 }
@@ -178,41 +233,32 @@ shot('c2imagine', 110.71, (t) => {
   bgCam(() => {
     // night → dawn wash
     // sunshine spreads outward from the globe: day paper underneath, the night wash recedes radially (brightness only ever rises)
-    paperBG();
-    if (dawn > 0) { X.save(); X.globalCompositeOperation = 'multiply'; X.globalAlpha = .6 * dawn; X.fillStyle = '#ffd99a'; X.fillRect(0, 0, DW, DH); X.restore(); }
+    // (the night is dark indigo pencil rubbed over the paper; dawn opens a widening hole in it, soft-edged by layers)
+    paperBG(dawn > 0 ? '#ffd99a' : null, dawn * 1.1);
     if (dawn < 1) {
-      const R = 2400 * dawn, g = X.createRadialGradient(G[0], G[1], R * .35, G[0], G[1], R + 1);
-      g.addColorStop(0, 'rgba(36,40,82,0)'); g.addColorStop(1, `rgba(36,40,82,${.92 * (1 - dawn * .35)})`);
-      X.save(); X.globalCompositeOperation = 'multiply'; X.fillStyle = g; X.fillRect(-200, -200, DW + 400, DH + 400); X.restore();
+      const R = 2400 * dawn;
+      softShroud(G[0], G[1], R * .4 + 1, R * .4 + 1, '#2e3266', 1.15 * (1 - dawn * .35), 3501, [-200, -200, DW + 200, DH + 200], 5, .375);
     }
-    // stars fade with dawn
-    X.save(); X.globalAlpha *= (1 - dawn) * .9;
-    for (let i = 0; i < 60; i++) { const x = hash(i * 1.3) * DW, y = hash(i * 2.7) * 700, tw = .5 + .5 * Math.sin(t * 3 + i); X.fillStyle = '#fff4c8'; X.globalAlpha = (1 - dawn) * (.3 + .6 * tw); X.beginPath(); X.arc(x, y, 2 + hash(i) * 2.5, 0, 7); X.fill(); }
-    X.restore();
+    // stars fade with dawn: tiny soft pencil dots
+    for (let i = 0; i < 60; i++) { const x = hash(i * 1.3) * DW, y = hash(i * 2.7) * 700, tw = .5 + .5 * Math.sin(t * 3 + i); softDisc(x, y, 2.4 + hash(i) * 2.8, '#fff4c8', (1 - dawn) * (.35 + .6 * tw), 3520 + i); }
   }, [960, 560, z, 0], { par: .86, over: 1.4 });
   X.save(); cam(960, 560, z);
   // sunrise glow behind the globe on "do."
   if (dawn > 0) {
-    X.save(); X.globalCompositeOperation = 'lighter'; const g = X.createRadialGradient(G[0], G[1], GR * .8, G[0], G[1], GR * 3.2);
-    g.addColorStop(0, `rgba(255,214,120,${.55 * dawn})`); g.addColorStop(1, 'rgba(255,214,120,0)'); X.fillStyle = g; X.fillRect(-200, -200, DW + 400, DH + 400); X.restore();
-    X.save(); X.globalAlpha *= dawn * .35; X.translate(G[0], G[1]); X.rotate(t * .08); X.fillStyle = '#fff3b0';
-    for (let i = 0; i < 16; i++) { const a0 = i / 16 * 6.283; X.beginPath(); X.moveTo(0, 0); X.lineTo(Math.cos(a0) * 1600, Math.sin(a0) * 1600); X.lineTo(Math.cos(a0 + .2) * 1600, Math.sin(a0 + .2) * 1600); X.fill(); }
-    X.restore();
+    softPool(G[0], G[1], GR * 3.2, GR * 3.0, '#ffcf73', .5 * dawn, 3601, 5, .35);
+    pencilRays(G[0], G[1], GR * .9, 1600, 16, t * .08, '#fbe49a', .5 * dawn, 3611, 34);
   }
   // magic: golden motes twinkle outward from the globe while the dawn blooms
   {
     const life = prog(t, tDo - .04, tDo + 2.1);
     if (life > 0 && life < 1) {
-      X.save(); X.globalCompositeOperation = 'lighter';
+      X.save();
       for (let i = 0; i < 46; i++) {
         const born = hash(i * 7.3) * .62, u = (life - born) / .38;
         if (u <= 0 || u >= 1) continue;
         const a0 = hash(i * 3.1) * 6.283, r = GR * (1.02 + E.outC(u) * (.35 + hash(i * 5.7) * .75));
         const x = G[0] + Math.cos(a0) * r, y = G[1] + Math.sin(a0) * r - u * 40, k = Math.sin(u * Math.PI), sz = (10 + hash(i * 9.1) * 16) * k;
-        X.globalAlpha = .85 * k; X.fillStyle = '#fff2b8';
-        X.beginPath();
-        for (let j = 0; j < 8; j++) { const rr = j % 2 ? sz * .28 : sz, b = j / 8 * 6.283 + t * 1.5; X.lineTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr); }
-        X.closePath(); X.fill();
+        sparkle(x, y, sz, t * 1.5 + i, i % 3 ? '#f2cc5a' : '#fff2b8', .85 * k, 3700 + i * 3);
       }
       X.restore();
     }
@@ -223,12 +269,12 @@ shot('c2imagine', 110.71, (t) => {
   globeSpin(GR, scroll);
   // night side: warm city lights twinkle on as bubbles are born
   X.save(); X.beginPath(); X.arc(0, 0, GR, 0, 7); X.clip();
-  X.fillStyle = `rgba(20,24,60,${.45 * (1 - dawn)})`; X.fillRect(-GR, -GR, GR * 2, GR * 2);
+  p4Fill(() => { X.beginPath(); X.rect(-GR, -GR, GR * 2, GR * 2); }, '#20264a', SOFT(.5 * (1 - dawn), .8));
   for (let i = 0; i < 40; i++) {
     const on = 110.729 + hash(i * 5.1) * 2.5; if (t < on) continue;
     const lx = ((hash(i * 1.9) * 2 - 1) * GR * 1.4 + scroll * .9), ly = (hash(i * 3.3) * 2 - 1) * GR * .8;
     if (Math.hypot(lx, ly) > GR * .95) continue;
-    X.fillStyle = '#ffe28a'; X.globalAlpha = (.6 + .4 * Math.sin(t * 6 + i)) * appear(t, on, .15); X.beginPath(); X.arc(lx, ly, 4 + kick(t - on, 10) * 6, 0, 7); X.fill();
+    softDisc(lx, ly, 4.5 + kick(t - on, 10) * 6, '#ffe28a', (.6 + .4 * Math.sin(t * 6 + i)) * appear(t, on, .15), 3800 + i);
   }
   X.restore();
   X.restore();

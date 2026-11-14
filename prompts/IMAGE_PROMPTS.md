@@ -1,6 +1,6 @@
 # Image prompts
 
-Every generated image in the film, grouped by use. Each was made with the OpenAI image API (`tools/genone.sh`, one image per call). **Refs** are the reference images passed alongside the prompt (paths relative to `assets/`; a few prompts used an earlier generated image as a style anchor, marked as such); the character crops in `assets/ref/` keep every pose on-model. Size is the requested canvas; background is `transparent` for sprites and `opaque` for plates.
+Every image generated for the original ink look of the film, grouped by use (the coloured-pencil redraws used in the final film are in [PENCIL_PROMPTS.md](PENCIL_PROMPTS.md)). Each was made with GPT Image 2.5 and MAI Image 2.6 (`tools/genone.sh`, one image per call). **Refs** are the reference images passed alongside the prompt (paths relative to `assets/`; a few prompts used an earlier generated image as a style anchor, marked as such); the character crops in `assets/ref/` keep every pose on-model. Size is the requested canvas; background is `transparent` for sprites and `opaque` for plates.
 
 Sprites were then alpha-trimmed (`tools/trim.js`). Some sprites have several candidates; only the chosen one is in `assets/`.
 

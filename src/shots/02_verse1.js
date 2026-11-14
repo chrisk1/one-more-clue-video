@@ -11,9 +11,11 @@ const paSq = (dt, a = .1) => { const k = dt >= 0 ? kick(dt, 14) : 0; return { sx
 const paImg = (n, fb) => IMG[n] ? n : fb;
 // Draw fn() so it stays sharp through a whip smear (subject tracked by the camera): it is left out of
 // the blurred pass and painted straight onto the frame during the type-record pass, under the type.
+// The picture is always drawn in type-'record' mode. Normal frames: draw in place. Whip frames (POST.smear set): the
+// subject is skipped in the blurred pass and drawn crisp after the smear (window.__crisp queue, flushed in seek()).
 function paCrisp(fn) {
   if (TYPE_MODE === 'skip') return;
-  if (TYPE_MODE === 'record') { const keep = X, m = X.getTransform(), a = X.globalAlpha; X = CV.getContext('2d'); X.save(); X.setTransform(m); X.globalAlpha = a; fn(); X.restore(); X = keep; return; }
+  if (TYPE_MODE === 'record') { const m = X.getTransform(), a = X.globalAlpha; (window.__crisp = window.__crisp || []).push(() => { X.save(); X.setTransform(m); X.globalAlpha = a; fn(); X.restore(); }); }
   fn();
 }
 
@@ -39,8 +41,8 @@ function aiCreature(x, y, s, o = {}) {
   const beatN = Math.floor(beatAt(t)), beatPulse = kick(t - beat(beatN), 8);
   if (o.shadow !== 0) shadowBlob(0, 18, 126, 16, .15);
   const pts = nodes.map(([nx, ny, r], j) => [
-    nx + wob(t, seed + j * 11, .55),
-    ny + wob(t, seed + j * 13, .5),
+    nx + (hash2(j, seed + 11) * 2 - 1) * 2.2,
+    ny + (hash2(j, seed + 13) * 2 - 1) * 2.0,
     r
   ]);
   links.forEach(([a, b], j) => {
@@ -49,14 +51,13 @@ function aiCreature(x, y, s, o = {}) {
     const A = pts[a], B = pts[b], bow = (j % 2 ? 1 : -1) * (a === 0 ? 10 : 7);
     const C = [(A[0] + B[0]) / 2 + bow, (A[1] + B[1]) / 2];
     const drawn = ptrim(spline([[A[0], A[1]], C, [B[0], B[1]]], 7), k);
-    inkLine(drawn, 3.2 / s, PAL.inkSoft, .32, seed + 40 + j);
+    inkLine(drawn, 4.4 / s, PAL.inkSoft, 1.1, seed + 40 + j);
     if (k > .96 && colorK > .18) {
       const p = (beatAt(t) * .85 + j * .17) % 1;
       const q0 = p < .5 ? lerp(A[0], C[0], p * 2) : lerp(C[0], B[0], (p - .5) * 2);
       const q1 = p < .5 ? lerp(A[1], C[1], p * 2) : lerp(C[1], B[1], (p - .5) * 2);
       X.save(); X.globalAlpha *= (.18 + beatPulse * .18) * colorK;
-      X.fillStyle = cols[j % cols.length];
-      X.beginPath(); X.ellipse(q0, q1, 4.5 / s, 3.8 / s, 0, 0, 7); X.fill();
+      p4Fill(() => { X.beginPath(); X.ellipse(q0, q1, 4.5 / s, 3.8 / s, 0, 0, 7); }, cols[j % cols.length], { wash: .8, grain: .9, tex: 'tex_soft' });
       X.restore();
     }
   });
@@ -66,8 +67,8 @@ function aiCreature(x, y, s, o = {}) {
     const popS = k * (1 + kick(t - (build + j * .045), 12) * .11);
     X.save(); X.translate(nx, ny); X.scale(popS, popS);
     const nodeCol = cols[j % cols.length];
-    inkShape(ellPts(0, 0, r, r * (j === 0 ? .94 : .9), 14), '#fff5df', 3 / s, .55, seed + j);
-    X.save(); X.globalAlpha *= .24 + .58 * colorK; inkShape(ellPts(0, 0, r * .92, r * (j === 0 ? .86 : .78), 13), nodeCol, 0, .65, seed + 80 + j); X.restore();
+    inkShape(ellPts(0, 0, r, r * (j === 0 ? .94 : .9), 14), '#fff5df', 4 / s, 1.4, seed + j);
+    X.save(); X.globalAlpha *= .45 + .55 * colorK; inkShape(ellPts(0, 0, r * .92, r * (j === 0 ? .86 : .78), 13), nodeCol, 0, 1.2, seed + 80 + j); X.restore();
     if (j === 0) {
       const blink = Math.sin(t * 7.2 + seed) > .94 ? .12 : 1;
       if (blink > .2) {
@@ -83,7 +84,7 @@ function aiCreature(x, y, s, o = {}) {
   if (button > .04) {
     X.save(); X.globalAlpha *= button * .7; X.translate(0, -146); X.scale(1 + button * .08, 1 + button * .08);
     inkShape(ellPts(0, 0, 62 + button * 18, 48 + button * 12, 18), null, 3 / s, .35, seed + 91);
-    X.save(); X.globalAlpha *= .28; X.fillStyle = PAL.lemon; X.beginPath(); X.ellipse(0, 0, 78 + button * 26, 56 + button * 18, 0, 0, 7); X.fill(); X.restore();
+    X.save(); X.globalAlpha *= .4; const bq = pkBlobPts(0, 0, 78 + button * 26, 56 + button * 18, seed + 95, 18, .08); p4Fill(() => curve(bq, true), PAL.lemon, { wash: .5, grain: .8, tex: 'tex_soft' }); X.restore();
     X.restore();
   }
   if (bow > .04) {
@@ -105,8 +106,8 @@ function aiMorphPuff(x, y, s, t, t0, seed = 1300) {
   }
   for (let j = 0; j < 6; j++) {
     const an = j / 6 * Math.PI * 2 - spin, rr = 44 + spin * 72;
-    X.save(); X.globalAlpha *= .5; X.fillStyle = j % 2 ? '#fff5df' : PAL.cream;
-    X.beginPath(); X.ellipse(Math.cos(an) * rr, Math.sin(an) * rr * .75, 12 - spin * 4, 9 - spin * 3, an, 0, 7); X.fill(); X.restore();
+    X.save(); X.globalAlpha *= .5;
+    p4Fill(() => { X.beginPath(); X.ellipse(Math.cos(an) * rr, Math.sin(an) * rr * .75, 12 - spin * 4, 9 - spin * 3, an, 0, 7); }, j % 2 ? '#fff5df' : PAL.cream, { wash: .85, grain: .8, tex: 'tex_soft' }); X.restore();
   }
   X.restore();
 }
@@ -200,12 +201,8 @@ shot('ai', W1[0], (t) => {
     X.save();
     X.globalCompositeOperation = 'multiply';
     X.globalAlpha *= .42 * focusA;
-    const g = X.createRadialGradient(gx, gy, 40, gx, gy, 520 + intelK * 80);
-    g.addColorStop(0, `rgba(255,218,82,${0.30 * pulse})`);
-    g.addColorStop(.52, `rgba(255,218,82,${0.12 * pulse})`);
-    g.addColorStop(1, 'rgba(255,218,82,0)');
-    X.fillStyle = g;
-    X.fillRect(gx - 660, gy - 560, 1320, 1120);
+    // soft pencil "light": pale lemon rubbed in, heavier in the middle, lighter toward a wobbly edge
+    pkRub(gx, gy, 470 + intelK * 70, 400 + intelK * 60, '#ffdc6a', { alpha: .42 * pulse, layers: 5, step: .17, amp: .1, seed: 1361 });
     X.restore();
   }
   X.save(); X.translate(cx, netBase); X.scale(1 + intelK * .045, 1 + intelK * .045); X.translate(-cx, -netBase);
@@ -252,40 +249,43 @@ const ROOM_PEEKS = [['ck_peek', 560, -.06], ['chal_peek', 760, .04], ['hyp_peek'
 const PA_GASP_H = { ck: 270, chal: 300, hyp: 270, tc: 300, st: 250 };
 const ECG_W = 720, ECG_H = 420;
 let ECG_CANVAS = null;
-function ecgTraceCtx(g, x, y, w, amp, seed) {
-  g.save(); g.strokeStyle = PAL.red; g.lineWidth = 7; g.lineJoin = g.lineCap = 'round'; g.globalAlpha *= .96;
-  g.beginPath();
+function ecgTracePts(x, y, w, amp, seed) {
+  const out = [];
   for (let i = 0; i <= 190; i++) {
     const px = x + w * i / 190, p = ((i / 190 * 5.7 + hash(seed) * .15) % 1);
     const spike = Math.exp(-Math.pow((p - .50) / .018, 2)) * -1.25 + Math.exp(-Math.pow((p - .54) / .012, 2)) * 2.35 + Math.exp(-Math.pow((p - .59) / .018, 2)) * -.8;
     const wave = Math.exp(-Math.pow((p - .22) / .06, 2)) * .22 + Math.exp(-Math.pow((p - .82) / .10, 2)) * .38;
-    const py = y + Math.sin(i * .31 + seed) * amp * .035 - (spike + wave) * amp;
-    if (i) g.lineTo(px, py); else g.moveTo(px, py);
+    out.push([px, y + Math.sin(i * .31 + seed) * amp * .035 - (spike + wave) * amp]);
   }
-  g.stroke(); g.restore();
+  return out;
 }
+// The ECG print-out is drawn in soft coloured pencil (grid, traces, stamp) on rubbed cream paper. Built once,
+// with the sketch clock pinned to 0 so the drawing is identical whichever frame builds it.
 function ecgCanvas() {
   if (ECG_CANVAS) return ECG_CANVAS;
   const c = document.createElement('canvas'), g = c.getContext('2d');
   c.width = ECG_W; c.height = ECG_H;
-  g.fillStyle = '#fffaf0'; g.fillRect(0, 0, ECG_W, ECG_H);
-  g.save(); g.beginPath(); g.rect(18, 18, ECG_W - 36, ECG_H - 36); g.clip();
-  g.globalAlpha = .34; g.strokeStyle = '#ef9a9b'; g.lineWidth = 1.5; g.beginPath();
-  for (let x = 24; x <= ECG_W - 24; x += 14) { g.moveTo(x, 24); g.lineTo(x, ECG_H - 24); }
-  for (let y = 24; y <= ECG_H - 24; y += 14) { g.moveTo(24, y); g.lineTo(ECG_W - 24, y); }
-  g.stroke();
-  g.globalAlpha = .42; g.strokeStyle = '#d85f66'; g.lineWidth = 2.6; g.beginPath();
-  for (let x = 24; x <= ECG_W - 24; x += 70) { g.moveTo(x, 24); g.lineTo(x, ECG_H - 24); }
-  for (let y = 24; y <= ECG_H - 24; y += 70) { g.moveTo(24, y); g.lineTo(ECG_W - 24, y); }
-  g.stroke(); g.restore();
-  g.fillStyle = PAL.ink; g.font = '48px SH'; g.textBaseline = 'top'; g.fillText('ECG 12-lead', 36, 28);
-  g.fillStyle = PAL.inkSoft; g.font = '27px SH'; g.fillText('ID: SEQ-DX   25 mm/s   NEW EVIDENCE', 330, 44);
-  [128, 208, 288, 360].forEach((yy, i) => {
-    g.fillStyle = PAL.inkSoft; g.font = '30px SH'; g.fillText(['I', 'II', 'V1', 'V5'][i], 38, yy - 18);   // ECG lead labels
-    ecgTraceCtx(g, 86, yy, 590, 30 + i * 3, 1230 + i);
-  });
-  g.save(); g.globalAlpha = .18; g.strokeStyle = '#8b5d42'; g.lineWidth = 7; g.beginPath(); g.ellipse(582, 82, 58, 38, .35, 0, 7); g.stroke(); g.restore();
-  g.strokeStyle = '#d2b99a'; g.lineWidth = 3; g.beginPath(); g.moveTo(36, ECG_H - 31); g.lineTo(ECG_W - 38, ECG_H - 28); g.stroke();
+  const keepX = X, keepT = T; X = g; T = 0;
+  try {
+    g.fillStyle = '#fffaf0'; g.fillRect(0, 0, ECG_W, ECG_H);
+    p4Fill(() => { g.beginPath(); g.rect(0, 0, ECG_W, ECG_H); }, '#f7ecd6', { wash: .2, grain: .55, tex: 'tex_soft' });
+    g.save(); g.beginPath(); g.rect(18, 18, ECG_W - 36, ECG_H - 36); g.clip();
+    const gl = (a, b, w, col, al, sd) => p4Line([a, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], b], w, col, .35, sd, false, { passes: 1, rough: .35, alpha: al });
+    for (let x = 24, n = 0; x <= ECG_W - 24; x += 14, n++) if (n % 5) gl([x, 24], [x, ECG_H - 24], 1.6, '#ef9a9b', .4, 1400 + n);
+    for (let y = 24, n = 0; y <= ECG_H - 24; y += 14, n++) if (n % 5) gl([24, y], [ECG_W - 24, y], 1.6, '#ef9a9b', .4, 1500 + n);
+    for (let x = 24, n = 0; x <= ECG_W - 24; x += 70, n++) gl([x, 24], [x, ECG_H - 24], 2.6, '#d85f66', .5, 1600 + n);
+    for (let y = 24, n = 0; y <= ECG_H - 24; y += 70, n++) gl([24, y], [ECG_W - 24, y], 2.6, '#d85f66', .5, 1700 + n);
+    g.restore();
+    g.fillStyle = PAL.ink; g.font = '48px SH'; g.textBaseline = 'top'; g.fillText('ECG 12-lead', 36, 28);
+    g.fillStyle = PAL.inkSoft; g.font = '27px SH'; g.fillText('ID: SEQ-DX   25 mm/s   NEW EVIDENCE', 330, 44);
+    [128, 208, 288, 360].forEach((yy, i) => {
+      g.fillStyle = PAL.inkSoft; g.font = '30px SH'; g.fillText(['I', 'II', 'V1', 'V5'][i], 38, yy - 18);
+      p4Line(ecgTracePts(86, yy, 590, 30 + i * 3, 1230 + i), 6.5, PAL.red, .4, 1230 + i, false, { passes: 2, rough: .45 });
+    });
+    const st = ellPts(0, 0, 58, 38, 16).map(([x, y]) => [582 + x * Math.cos(.35) - y * Math.sin(.35), 82 + x * Math.sin(.35) + y * Math.cos(.35)]);
+    p4Line(st, 6, '#8b5d42', .6, 1290, true, { passes: 1, alpha: .25 });
+    p4Line([[36, ECG_H - 31], [ECG_W / 2, ECG_H - 29], [ECG_W - 38, ECG_H - 28]], 3, '#d2b99a', .4, 1291, false, { passes: 1 });
+  } finally { X = keepX; T = keepT; }
   ECG_CANVAS = c;
   return c;
 }
@@ -370,7 +370,7 @@ shot('lands', W2[0], (t) => {
   });
   spr('table', 960, 1040, 520, { boil: true });
   fallingEcgSheet(t, land, fallT0);
-  if (t > land) for (let j = 0; j < 7; j++) { const a = j / 7 * Math.PI * 2, d = E.outC(prog(t, land, land + .5)) * 72; X.save(); X.globalAlpha *= vanish(t, land + .25, .3) * .25; X.fillStyle = '#e9d9b5'; X.beginPath(); X.arc(960 + Math.cos(a) * d * 1.25, 604 + Math.sin(a) * d * .2 - d * .1, 10 - d * .065, 0, 7); X.fill(); X.restore(); }
+  if (t > land) for (let j = 0; j < 7; j++) { const a = j / 7 * Math.PI * 2, d = E.outC(prog(t, land, land + .5)) * 72; X.save(); X.globalAlpha *= vanish(t, land + .25, .3) * .3; p4Fill(() => { X.beginPath(); X.arc(960 + Math.cos(a) * d * 1.25, 604 + Math.sin(a) * d * .2 - d * .1, 10 - d * .065, 0, 7); }, '#e9d9b5', { wash: .8, grain: .8, tex: 'tex_soft' }); X.restore(); }
   X.restore();
   // type in screen space
   o12Row([['NEW', tNew], ['EVIDENCE', tEv], ['LANDS,', tL, { col: PAL.red, edge: true }]], 960, 215, 150, { alpha: vanish(t, tAnd - .1, .1) });

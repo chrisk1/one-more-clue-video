@@ -10,9 +10,9 @@ function syntheticCard(x, y, o = {}) {
   const w0 = o.w ?? 150, h0 = o.h ?? 190, s = o.s ?? 1, heading = o.heading !== false ? (o.heading || 'Synthetic result') : '';
   card(x, y, { ...o, glyph: false, stock: SYN_STOCK, lines: false });
   const w = w0 * s, h = h0 * s;
-  X.save(); X.translate(x, y); X.rotate(o.rot ?? 0); X.globalAlpha *= (o.alpha ?? 1) * .75;
-  X.setLineDash([10, 9]); X.lineDashOffset = boilStep(T) * 3; X.strokeStyle = '#6b4f9a'; X.lineWidth = 3.2;
-  X.strokeRect(-w / 2 + 9, -h / 2 + 9, w - 18, h - 18); X.restore();
+  X.save(); X.translate(x, y); X.rotate(o.rot ?? 0); X.globalAlpha *= (o.alpha ?? 1) * .9;
+  const bp = rectPts(-w / 2 + 10, -h / 2 + 10, w - 20, h - 20, 6, 3);
+  pkDash([...bp, bp[0]], 12, 10, 3.8, '#5f448f', { seed: (o.seed ?? 3) + 77 }); X.restore();
   X.save(); X.translate(x, y); X.rotate(o.rot ?? 0); X.scale(s, s); X.globalAlpha *= o.alpha ?? 1;
   if (heading) {
     const hs0 = o.headingSize ?? 43, hs = Math.min(hs0, (w0 - 34) / measure(heading, hs0, 'SH') * hs0);
@@ -29,7 +29,7 @@ function holePts(x, y, w, h, seed) {
   for (let i = 0; i < n; i++) {
     const a = i / n * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
     const k = 1 / Math.max(Math.abs(c) / (w / 2), Math.abs(s) / (h / 2));
-    const j = 1 + (hash2(i, seed) - .5) * .3 * (i % 2 ? 1 : .4) + wob(T, seed + i, .015);
+    const j = 1 + (hash2(i, seed) - .5) * .3 * (i % 2 ? 1 : .4) + (hash2(i, seed + 7) - .5) * .03;
     pts.push([x + c * k * j, y + s * k * j]);
   }
   return pts;
@@ -40,9 +40,13 @@ function hole(x, y, w, h, seed, inner) {
   const rim = p.map(([px, py], i) => [x + (px - x) * (1.07 + hash2(i, seed + 3) * .06), y + (py - y) * (1.1 + hash2(i, seed + 4) * .08)]);
   inkShape(rim, '#fffaf0', 0, .8, seed + 50);
   X.save(); X.beginPath(); p.forEach((q, i) => i ? X.lineTo(...q) : X.moveTo(...q)); X.closePath(); X.clip();
-  X.fillStyle = PAL.cork; X.fillRect(x - w, y - h, w * 2, h * 2);
-  X.fillStyle = 'rgba(80,50,25,.12)'; for (let i = 0; i < 40; i++) { X.beginPath(); X.arc(x + (hash(i + seed) - .5) * w, y + (hash(i * 2 + seed) - .5) * h, 3, 0, 7); X.fill(); }
-  X.fillStyle = 'rgba(40,25,10,.35)'; X.fillRect(x - w, y - h / 2 - 6, w * 2, h * .22);
+  // cork seen through the tear: rubbed tan pencil, soft crumbs, the torn edge's shadow along the top
+  X.fillStyle = p4Shade(PAL.cork, .35); X.fillRect(x - w, y - h, w * 2, h * 2);
+  p4Fill(() => { X.beginPath(); X.rect(x - w, y - h, w * 2, h * 2); }, PAL.cork, { wash: .55, grain: .9, shade: .25, tex: 'tex_soft' });
+  X.save(); X.globalAlpha *= .3;
+  for (let i = 0; i < 26; i++) inkShape(ellPts(x + (hash(i + seed) - .5) * w, y + (hash(i * 2 + seed) - .5) * h, 3.5, 2.6, 6), '#7a5532', 0, .6, seed + 200 + i);
+  X.restore();
+  p4Fill(() => curve(wobbled([[x - w, y - h / 2 - 20], [x + w, y - h / 2 - 20], [x + w, y - h / 2 + h * .2], [x, y - h / 2 + h * .26], [x - w, y - h / 2 + h * .18]], 5, seed + 9), true), '#5a3a20', { alpha: .45, wash: .35, grain: .9, tex: 'tex_soft' });
   if (inner) inner();
   X.restore();
   inkShape(p, null, 3, .6, seed, PAL.inkSoft);
@@ -54,6 +58,16 @@ function ding(x, y, t0, s = 1) {
   X.save(); X.globalAlpha *= a;
   for (let i = 0; i < 9; i++) { const an = -Math.PI / 2 + (i - 4) * .3, r0 = 90 * s + k * 40 * s, r1 = r0 + 60 * s * (1 - k * .5);
     inkLine([[x + Math.cos(an) * r0, y + Math.sin(an) * r0], [x + Math.cos(an) * r1, y + Math.sin(an) * r1]], 7 * s, PAL.ink, .4, 700 + i); }
+  X.restore();
+}
+// Soft pencil light: three rubbed, wobble-edged pale discs (denser to the centre). No gradients, no 'lighter'.
+function halo(x, y, r, col, a, seed) {
+  if (a <= 0) return;
+  X.save(); X.globalAlpha *= Math.min(1, a);
+  [[1, .2], [.68, .3], [.4, .45]].forEach(([k, al], i) => {
+    const pts = wobbled(ellPts(x, y, r * k, r * k * .9, 20), r * k * .06, seed + i * 13);
+    p4Fill(() => curve(pts, true), p4Shade(col, i * .25), { alpha: al, wash: .6, grain: .75, tex: 'tex_soft' });
+  });
   X.restore();
 }
 function resultSheet(x, y, o = {}) {
@@ -125,24 +139,41 @@ function typewriterSheet(mo, vis, o) {
   X.restore();
   return [mo.m[0] + ux * d, mo.m[1] + uy * d];
 }
+// pencil puff: one scalloped cloud — very pale rubbed fill, a scribbled wobbly pencil outline, a couple of inner curls
+function pencilPuff(x, y, rx, ry, lobes, seed, a = 1, col = '#f6eedb') {
+  if (a <= .01) return;
+  const N = lobes * 8, ph = hash2(seed, 1) * 3, pts = [];
+  for (let j = 0; j < N; j++) { const an = j / N * Math.PI * 2, b = .82 + .18 * Math.abs(Math.sin(an * lobes / 2 + ph)) + (hash2(j, seed) - .5) * .05; pts.push([x + Math.cos(an) * rx * b, y + Math.sin(an) * ry * b]); }
+  X.save(); X.globalAlpha *= a;
+  p4Fill(() => curve(pts, true), col, { alpha: .6, wash: .75, grain: .6, tex: 'tex_soft' });
+  p4Line(pts, 3, P4.line, 1.4, seed, true, { alpha: .7, passes: 3, rough: 1.3 });
+  for (let i = 0; i < 3; i++) {
+    const an = hash2(i, seed + 5) * Math.PI * 2, cx = x + Math.cos(an) * rx * .4, cy = y + Math.sin(an) * ry * .4, cr = Math.min(rx, ry) * (.18 + hash2(i, seed + 7) * .1);
+    p4Line([0, 1, 2, 3, 4].map(m => { const u = an + 2.2 + m * .45; return [cx + Math.cos(u) * cr, cy + Math.sin(u) * cr * .8]; }), 2.2, P4.lineSoft, .6, seed + 20 + i, false, { alpha: .55, passes: 1 });
+  }
+  X.restore();
+}
 function typePuff(x, y, t0, seed, r = 150, n = 7) {
   const dt = T - t0; if (dt < 0 || dt > .36) return;
-  const k = E.outC(clamp(dt / .3));
-  X.save(); X.globalAlpha *= .7 * (1 - clamp((dt - .06) / .3));
-  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + hash2(i, seed) * .6, rr = r * (.35 + k * .75);
-    inkShape(ellPts(x + Math.cos(a) * rr, y + Math.sin(a) * rr * .55, 40 + k * 30 + i * 3, 30 + k * 22 + i * 2, 10), '#f4ead6', 3, 1.2, seed + i); }
-  X.restore();
+  const k = E.outC(clamp(dt / .3)), rx = r * (.35 + k * .75) + 55 + k * 30;
+  pencilPuff(x, y, rx, rx * .62, n, seed, 1 - clamp((dt - .24) / .12));
 }
 function ownDrawer(x, y, open, tSlam, front = false) {
   if (open <= .01 && !front) return;
   const dx = x - 188, dy = y - 314, w = 330, h = 96, pull = 112 * open;
   X.save(); X.globalAlpha *= clamp(open * 1.15);
   if (!front) {
-    inkShape(rectPts(dx - 16, dy + 18, w + 30, h + 18, 12, 5), '#5b4a3d', 4, .7, 846);
-    inkShape(rectPts(dx - 4, dy + 28, w + 8, h - 8, 9, 4), '#2f2825', 2.5, .45, 847);
-    for (let i = 0; i < 3; i++) inkLine([[dx + 30 + i * 92, dy + 34], [dx + 8 + i * 92, dy + h + 12]], 2, '#82664a', .25, 848 + i);
+    // brown pencil, not near-black — a mid-brown frame round a darker rubbed-brown hollow
+    inkShape(rectPts(dx - 16, dy + 18, w + 30, h + 18, 12, 5), '#a8896a', 4, .7, 846);
+    inkShape(rectPts(dx - 4, dy + 28, w + 8, h - 8, 9, 4), '#88694f', 2.5, .45, 847);
+    for (let i = 0; i < 3; i++) inkLine([[dx + 30 + i * 92, dy + 34], [dx + 8 + i * 92, dy + h + 12]], 2, '#5e4636', .25, 848 + i);
   } else {
-    inkShape(rectPts(dx - pull, dy + 62, w, h, 13, 5), '#5fa6d5', 5, .9, 852);
+    // the front is pale blue rubbed in with pencil, denser in the middle and lighter toward the edges
+    const fr = rectPts(dx - pull, dy + 62, w, h, 13, 5), fq = wobbled(fr, .9, 852);
+    X.save(); X.fillStyle = p4Shade('#7fb6da', .6); curve(fq, true); X.fill(); X.restore();
+    p4Fill(() => curve(fq, true), '#7fb6da', { alpha: .6, wash: .3, grain: .9, tex: 'tex_soft' });
+    p4Fill(() => curve(wobbled(rectPts(dx - pull + 16, dy + 74, w - 32, h - 24, 10, 5), 3, 855), true), '#6eaad3', { alpha: .45, wash: .4, grain: .8, tex: 'tex_soft' });
+    p4Line(fr, 5 * P4.lineK, P4.line, .9, 902, true);
     inkShape(rectPts(dx - pull + 110, dy + 100, 112, 18, 7, 3), '#f6e2b8', 2.6, .55, 853);
     inkLine([[dx - pull + 104, dy + 138], [dx - pull + 230, dy + 138]], 4, PAL.inkSoft, .35, 854);
   }
@@ -165,7 +196,7 @@ shot('sdbench', 58.41, (t) => {
   const w = W(14), tAsk = w[1], tFind = w[3], tOrder = w[4], tA = w[5], tTest = w[6];
   const S1 = beat(89), S2 = beat(89.5), S3 = beat(90);
   const push = E.io(prog(t, 58.41, 62.08));
-  const c = [960 + push * 40, 540 + push * 10, 1.04 + push * .06 + kick(t - tTest, 9) * .03 * (t > tTest), wob(t, 3, .002)];
+  const c = [960 + push * 40, 540 + push * 10, 1.04 + push * .06 + kick(t - tTest, 9) * .03 * (t > tTest), 0];
   bgCam('waiting', c, { z: 1.02, par: .92, over: 1.22 });
   X.save(); cam(...c);
   // Gatekeeper at the counter: the benchmark examiner
@@ -241,8 +272,8 @@ shot('back', 62.08, (t) => {
     const path = spline([hub, [lerp(hub[0], e[0], .5), lerp(hub[1], e[1], .5) + (i - 1) * 40], e], 12);
     const chosen = i === 1 && t >= tNext;
     if (chosen) thread(path, { w: 12, k: E.outC(prog(t, tNext, tNext + .2)), tip: true });
-    X.save(); X.globalAlpha *= chosen ? .3 : (t > tNext ? .45 : 1); X.setLineDash([16, 14]); X.strokeStyle = PAL.redDk; X.lineWidth = 6;
-    X.beginPath(); ptrim(path, k).forEach((p, j) => j ? X.lineTo(...p) : X.moveTo(...p)); X.stroke(); X.restore();
+    X.save(); X.globalAlpha *= chosen ? .3 : (t > tNext ? .45 : 1);            // dashed route = short pencil strokes
+    pkDash(ptrim(path, k), 16, 14, 5.5, PAL.redDk, { seed: 775 + i * 40 }); X.restore();
     const sc = pop(t, t0 + .2, 4, .45);
     if (sc > 0) card(e[0] + 30, e[1] + 120, { w: 170, h: 215, glyph: gl[i], rot: (i - 1) * .07, seed: 773 + i, s: sc * (chosen ? 1 + kick(t - tNext, 9) * .2 : 1), alpha: chosen || t < tNext ? 1 : .55 });
     if (chosen) tack(e[0], e[1], 1.1, { pressed: E.outBack(prog(t, tNext + .15, tNext + .22)) });
@@ -294,8 +325,17 @@ shot('dry', 64.66, (t) => {
   const c = [lerp(lerp(960, 760, camK), 1045, typeK), lerp(lerp(540, 690, camK), 642, typeK), lerp(lerp(1, 1.24, camK), 1.5, typeK), 0];
   bgCam(() => paperBG('#f1d9a8', .6), c, { par: .9, over: 1.18 });
   X.save(); cam(...c);
-  if (t > tBulb - .05) { const pw = E.outC(prog(t, tBulb - .05, tBulb + .25)); X.save(); X.globalCompositeOperation = 'multiply'; X.globalAlpha = pw * .45; const gl = X.createRadialGradient(simX - 70, 470, 60, simX - 70, 470, 1100); gl.addColorStop(0, '#ffffff'); gl.addColorStop(1, '#9fb8e0'); X.fillStyle = gl; X.fillRect(0, 0, DW, DH); X.restore();
-    X.save(); X.globalCompositeOperation = 'lighter'; X.globalAlpha = pw * (.56 + .16 * Math.sin(t * 30)); const g2 = X.createRadialGradient(simX - 35, 390, 10, simX - 35, 390, 420); g2.addColorStop(0, 'rgba(255,238,120,.85)'); g2.addColorStop(1, 'rgba(160,200,255,0)'); X.fillStyle = g2; X.fillRect(740, 0, 900, 820); X.restore(); }
+  if (t > tBulb - .05) {
+    const pw = E.outC(prog(t, tBulb - .05, tBulb + .25)), fl = .85 + .15 * Math.sin(p4Step() * 2.1);
+    // the room dims to a cool rubbed blue-grey everywhere except a soft pool round the idea
+    X.save(); X.globalCompositeOperation = 'multiply';
+    [[1150, 900, .2, 60, -40], [920, 720, .17, -90, 50], [740, 600, .14, 70, 30], [580, 480, .11, -30, -50]].forEach(([rx, ry, al, ox, oy], j) => {
+      const hp = wobbled(ellPts(simX - 70 + ox, 470 + oy, rx, ry, 16), 80, 963 + j * 7).reverse();
+      p4Fill(() => { X.beginPath(); X.rect(-400, -400, DW + 800, DH + 800); const q0 = mid(hp[hp.length - 1], hp[0]); X.moveTo(...q0); hp.forEach((q, i) => { const m = mid(q, hp[(i + 1) % hp.length]); X.quadraticCurveTo(q[0], q[1], m[0], m[1]); }); X.closePath(); }, '#aebee0', { alpha: pw * al * 2, wash: .3, grain: .8, tex: 'tex_soft' });
+    });
+    X.restore();
+    halo(simX - 35, 390, 420, '#ffe98a', pw * fl, 961);
+  }
   inkLine([[0, 900], [1920, 905]], 5, PAL.inkSoft, 1.4, 780);
   // typing: he sits at a desk typewriter (sprite frames swap with the keystrokes); the sheet feeds up out of its roller
   const twX = 1308, twY = 1122, typing = !proud && t >= tBulb - .03 && t < tPull;
@@ -315,7 +355,7 @@ shot('dry', 64.66, (t) => {
   if (drawerOpen > .01) ownDrawer(simX, simY, drawerOpen, tSlam, false);
   if (t > tBulb - .08 && t < tSlam + .1) {
     const b = pop(t, tBulb, 3.3, .55);
-    if (b > .01) spr('bulb', simX - 35, 360 - kick(t - tBulb, 7) * 26, 180 * b, { seed: 7, shadow: .5, rot: wob(t, 11, .04) });
+    if (b > .01) spr('bulb', simX - 35, 360 - kick(t - tBulb, 7) * 26, 180 * b, { seed: 7, shadow: .5, rot: Math.sin(t * 5.5) * .04 });
     ding(simX - 35, 320, tBulb, .8);
   }
   // desk + typewriter pop in / out behind a puff on the pose changes
@@ -345,8 +385,8 @@ shot('dry', 64.66, (t) => {
   // dust puff + moth when the drawer comes up empty
   if (t > tDry && t < tSim + .2) {
     const dt = t - tDry;
-    for (let i = 0; i < 7; i++) { const a = -2.4 + i * .5, r = 40 + E.outC(clamp(dt / .6)) * 150;
-      X.save(); X.globalAlpha *= .5 * (1 - clamp(dt / .9)); inkShape(ellPts(simX - 210 + Math.cos(a) * r, 660 + Math.sin(a) * r * .6, 34 + i * 4, 26 + i * 3, 10), '#e8dcc2', 3, 1.4, 790 + i); X.restore(); }
+    const r = 40 + E.outC(clamp(dt / .6)) * 150;
+    pencilPuff(simX - 210 - r * .2, 660 - r * .35, r + 50, (r + 50) * .55, 6, 790, .85 * (1 - clamp(dt / .9)), '#ece2cc');
     const mx = simX - 210 - dt * 260 + Math.sin(dt * 11) * 30, my = 620 - dt * 220 + Math.cos(dt * 17) * 20, fl = Math.abs(Math.sin(t * 40));
     inkShape([[mx, my], [mx - 34, my - 26 * fl], [mx - 26, my + 8]], '#d8ccb4', 3, .6, 798); inkShape([[mx, my], [mx + 34, my - 26 * fl], [mx + 26, my + 8]], '#d8ccb4', 3, .6, 799);
   }
@@ -420,7 +460,7 @@ shot('leak', 72.23, (t) => {
     // behind the page: the hidden ANSWER card, and Challenger peering in
     card(hx + 70, hy + 10, { w: 110, h: 140, glyph: 'bulb', seed: 850, rot: .08 });
     const pk = E.outBack(prog(t, tGaps - .1, tGaps + .2));
-    spr('chal_peek', hx - 70 - (1 - pk) * 220, hy + 120, 240, { seed: 5, rot: -.08 + wob(t, 2, .01) });
+    spr('chal_peek', hx - 70 - (1 - pk) * 220, hy + 120, 240, { seed: 5, rot: -.08 });
     if (t > tAns - .15) { X.save(); X.globalAlpha *= appear(t, tAns - .15, .08); word('!', hx - 10, hy - 70, 70, { col: PAL.red, font: 'FB', ax: .5 }); X.restore(); }
   });
   if (t >= tAway - .14) {
