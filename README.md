@@ -103,7 +103,7 @@ build discussion, critiqued each cut. The prompts used at each stage are in
 - **Every lyric word timed to the moment it's sung**, and every move that follows the beat driven by a tempo map
   measured from the track.
 
-### How it developed
+### How the music video was developed
 
 1. **A first draft, then a fresh start.** The first version worked technically, but it looked generic and didn't tell
    the story of the lyrics. The brief was rewritten to ask for much more: charming, hand-made and funny, with K-pop-style
@@ -152,8 +152,6 @@ build discussion, critiqued each cut. The prompts used at each stage are in
 - **Looking at the actual frames.** Contact sheets 83 ms after each sung word, and stepping frame by frame around each
   hit, caught problems that weren't obvious when watching.
 - **Reviewers without the context.** Reviewers who hadn't seen the build discussion gave the most useful feedback.
-- **Cutting gags that didn't read.** Several gags were built and then removed. A clear frame worked better than a busy
-  one.
 - **Restyling a short section first.** Working out the look on 24 seconds made each round of feedback quick and cheap.
 
 ---
